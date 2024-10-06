@@ -42,34 +42,65 @@ fn handle_client(stream: TcpStream) {
 			let _ = writer.flush();
 			return;
 		} else if req.command.eq("get") {
-			let k = req.parameters.iter().nth(0).unwrap().as_str();
-			let v = kv::get(k);
-			match v {
-				Some(s) => {
-					let _ = writer.write_fmt(format_args!("\"{}\"\n", s));
-				},
-				None => {
-					let _ = writer.write("(nil)\n".as_bytes());
-				}
-			};
+			cmd_get(req, &mut writer);
 		} else if req.command.eq("set") {
-			let k = req.parameters.iter().nth(0).unwrap().as_str();
-			let v = req.parameters.iter().nth(1).unwrap().as_str();
-			let _oldv = kv::set(k, v);
-			let _ = writer.write("\"OK\"\n".as_bytes());
+			cmd_set(req, &mut writer);
 		} else if req.command.eq("keys") {
-			let ks = kv::keys();
-			if 0 < ks.len() {
-				let mut cnt = 0;
-				for k in ks {
-					cnt += 1;
-					let _ = writer.write_fmt(format_args!("{}) \"{}\"\n", cnt, k));
-				}
-			} else {
-				let _ = writer.write("(empty array)\n".as_bytes());
-			}
+			cmd_keys(req, &mut writer);
 		} else {
 			let _ = writer.write_fmt(format_args!("Unknown command \"{}\".\n", req.command));
 		}
+	}
+}
+
+fn cmd_get(req: Request, writer: &mut BufWriter<&TcpStream>) {
+	if 1 > req.parameters.len() {
+		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
+	} else {
+		match kv::get(req.parameters.iter().nth(0).unwrap().as_str()) {
+			Some(s) => {
+				let _ = writer.write_fmt(format_args!("\"{}\"\n", s));
+			},
+			None => {
+				let _ = writer.write("(nil)\n".as_bytes());
+			}
+		};
+	}
+}
+
+fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) {
+	if 1 > req.parameters.len() {
+		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
+	} else {
+		match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
+			Ok(ks) => {
+				if 0 < ks.len() {
+					let mut cnt = 0;
+					for k in ks {
+						cnt += 1;
+						let _ = writer.write_fmt(format_args!("{}) \"{}\"\n", cnt, k));
+					}
+				} else {
+					let _ = writer.write("(empty array)\n".as_bytes());
+				}
+			},
+			Err(e) => {
+				let _ = writer.write_fmt(format_args!("ERR {}\n", e));
+			}
+		}
+	}
+}
+
+fn cmd_set(req: Request, writer: &mut BufWriter<&TcpStream>) {
+	if 1 > req.parameters.len() {
+		let _ = writer.write("ERR missing 2 arguments\n".as_bytes());
+	} else if 2 > req.parameters.len() {
+		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
+	} else {
+		let _oldv = kv::set(
+			req.parameters.iter().nth(0).unwrap().as_str(),
+			req.parameters.iter().nth(1).unwrap().as_str()
+		);
+		let _ = writer.write("\"OK\"\n".as_bytes());
 	}
 }
