@@ -2,11 +2,11 @@ use super::Request;
 
 pub fn parse(request: &str) -> Request {
 	if let Some((cmd, prms)) = request.trim().split_once(" ") {
-		let command = String::from(cmd.to_lowercase());
+		let command = String::from(cmd);
 		let parameters = tokenize(prms);
 		Request {command, parameters}
 	} else {
-		let command = request.trim().to_lowercase();
+		let command = request.trim().to_string();
 		let parameters = Vec::new();
 		Request {command, parameters}
 	}
