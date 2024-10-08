@@ -2,12 +2,41 @@ mod kv;
 mod parser;
 mod request;
 
-use std::collections::HashMap;
 use std::io::{BufRead, BufReader, BufWriter, Error, Write};
 use std::net::{TcpListener, TcpStream};
 use threadpool::ThreadPool;
+use phf::{phf_map};
 
 use request::Request;
+
+struct Command<'a> {
+	function: fn(Request, &mut BufWriter<&TcpStream>),
+	syntax: &'a str,
+	doc: &'a str
+}
+
+static CMDS: phf::Map<&str, Command> = phf_map! {
+	"get" => Command {
+		function: cmd_get,
+		syntax: "get KEY",
+		doc: "obtain value associated with they KEY."
+	},
+	"help" => Command {
+		function: cmd_help,
+		syntax: "help [ COMMAND ]",
+		doc: "list commands, or show details of the given COMMAND."
+	},
+	"keys" => Command {
+		function: cmd_keys,
+		syntax: "keys REGEX",
+		doc: "list keys matching the REGEX pattern."
+	},
+	"set" => Command {
+		function: cmd_set,
+		syntax: "set KEY VALUE",
+		doc: "record the given KEY VALUE pair."
+	}
+};
 
 pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 	let listener: TcpListener = TcpListener::bind(bindaddr)?;
@@ -42,14 +71,8 @@ fn handle_client(stream: TcpStream) {
 		if req.command.eq("quit") {
 			let _ = writer.flush();
 			return;
-		} else if req.command.eq("get") {
-			cmd_get(req, &mut writer);
-		} else if req.command.eq("help") {
-			cmd_help(req, &mut writer);
-		} else if req.command.eq("set") {
-			cmd_set(req, &mut writer);
-		} else if req.command.eq("keys") {
-			cmd_keys(req, &mut writer);
+		} else if let Some(cmd) = CMDS.get(req.command.as_str()) {
+			(cmd.function)(req, &mut writer);
 		} else {
 			let _ = writer.write_fmt(format_args!("Unknown command \"{}\".\n", req.command));
 		}
@@ -72,17 +95,10 @@ fn cmd_get(req: Request, writer: &mut BufWriter<&TcpStream>) {
 }
 
 fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	// TODO:2024-10-08:chun:let's introduce a struct for the values
-	let cmds = HashMap::from([
-		("get", "get KEY\n\nobtain value associated with the KEY.\n"),
-		("keys", "keys REGEX\n\nlist keys matching the REGEX pattern.\n"),
-		("set", "set KEY VALUE\n\nrecord the given KEY VALUE pair.\n")
-	]);
-
 	if 1 > req.parameters.len() {
 		let _ = writer.write("Available commands:\n".as_bytes());
 		let mut cnt = 0;
-		for cmd in cmds.keys() {
+		for cmd in CMDS.keys() {
 			cnt += 1;
 			let _ = writer.write_fmt(format_args!("{cnt}) \"{cmd}\"\n"));
 		}
@@ -91,9 +107,13 @@ fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) {
 				.as_bytes()
 		);
 	} else {
-		match cmds.get(req.parameters.iter().nth(0).unwrap().as_str()) {
-			Some(help) => {
-				let _ = writer.write_fmt(format_args!("{help}\n"));
+		match CMDS.get(req.parameters.iter().nth(0).unwrap().as_str()) {
+			Some(cmd) => {
+				let _ = writer.write_fmt(format_args!(
+					"{}\n\n{}\n\n",
+					cmd.syntax,
+					cmd.doc
+				));
 			},
 			None => {
 				let _ = writer.write("Unknown command\n".as_bytes());
