@@ -19,7 +19,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 	"get" => Command {
 		function: cmd_get,
 		syntax: "get KEY",
-		doc: "obtain value associated with they KEY."
+		doc: "obtain value associated with the KEY."
 	},
 	"help" => Command {
 		function: cmd_help,
