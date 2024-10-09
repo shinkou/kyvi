@@ -80,7 +80,9 @@ mod tests {
 
 	#[test]
 	fn singlequotes() {
-		let res = tokenize(" 'Unlimited Refill' during weekdays '(from 10 a.m. to 2 p.m.)' only");
+		let res = tokenize(
+			" 'Unlimited Refill' during weekdays '(from 10 a.m. to 2 p.m.)' only"
+		);
 		assert_eq!(res.len(), 5);
 		assert_eq!(res[0], "Unlimited Refill");
 		assert_eq!(res[1], "during");
@@ -91,7 +93,9 @@ mod tests {
 
 	#[test]
 	fn doublequote() {
-		let res = tokenize(" Some \"experts say, 'You've forgotten something.'");
+		let res = tokenize(
+			" Some \"experts say, 'You've forgotten something.'"
+		);
 		assert_eq!(res.len(), 2);
 		assert_eq!(res[0], "Some");
 		assert_eq!(res[1], "experts say, 'You've forgotten something.'");
@@ -99,7 +103,9 @@ mod tests {
 
 	#[test]
 	fn singlequote() {
-		let res = tokenize(" They say Dennis' birthday is \"once in a bluemoon\".");
+		let res = tokenize(
+			" They say Dennis' birthday is \"once in a bluemoon\"."
+		);
 		assert_eq!(res.len(), 3);
 		assert_eq!(res[0], "They");
 		assert_eq!(res[1], "say");

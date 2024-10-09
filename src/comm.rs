@@ -31,6 +31,11 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		syntax: "keys REGEX",
 		doc: "list keys matching the REGEX pattern."
 	},
+	"quit" => Command {
+		function: cmd_quit,
+		syntax: "quit",
+		doc: "close current connection and quit."
+	},
 	"set" => Command {
 		function: cmd_set,
 		syntax: "set KEY VALUE",
@@ -68,13 +73,15 @@ fn handle_client(stream: TcpStream) {
 		let _ = writer.flush();
 		let _res: Result<usize, Error> = reader.read_line(&mut buf);
 		let req = parser::parse(&buf);
-		if req.command.eq("quit") {
-			let _ = writer.flush();
-			return;
-		} else if let Some(cmd) = CMDS.get(req.command.as_str()) {
+		if let Some(cmd) = CMDS.get(req.command.as_str()) {
 			(cmd.function)(req, &mut writer);
+			if cmd.function == cmd_quit {
+				return;
+			}
 		} else {
-			let _ = writer.write_fmt(format_args!("Unknown command \"{}\".\n", req.command));
+			let _ = writer.write_fmt(
+				format_args!("Unknown command \"{}\".\n", req.command)
+			);
 		}
 	}
 }
@@ -110,7 +117,7 @@ fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) {
 		match CMDS.get(req.parameters.iter().nth(0).unwrap().as_str()) {
 			Some(cmd) => {
 				let _ = writer.write_fmt(format_args!(
-					"{}\n\n{}\n\n",
+					"Syntax:\n\t{}\n\nDescription:\n\t{}\n\n",
 					cmd.syntax,
 					cmd.doc
 				));
@@ -132,7 +139,9 @@ fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) {
 					let mut cnt = 0;
 					for k in ks {
 						cnt += 1;
-						let _ = writer.write_fmt(format_args!("{}) \"{}\"\n", cnt, k));
+						let _ = writer.write_fmt(
+							format_args!("{}) \"{}\"\n", cnt, k)
+						);
 					}
 				} else {
 					let _ = writer.write("(empty array)\n".as_bytes());
@@ -143,6 +152,10 @@ fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) {
 			}
 		}
 	}
+}
+
+fn cmd_quit(_req: Request, writer: &mut BufWriter<&TcpStream>) {
+	let _ = writer.flush();
 }
 
 fn cmd_set(req: Request, writer: &mut BufWriter<&TcpStream>) {

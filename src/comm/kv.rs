@@ -14,7 +14,12 @@ pub fn keys(p: &str) -> Result<Vec<String>, Error> {
 	match Regex::new(p) {
 		Ok(re) => {
 			let kv = M.lock().unwrap();
-			Ok(kv.keys().filter(|s| re.is_match(s)).map(|s| s.to_string()).collect())
+			Ok(
+				kv.keys()
+					.filter(|s| re.is_match(s))
+					.map(|s| s.to_string())
+					.collect()
+			)
 		},
 		Err(e) => Err(e)
 	}
