@@ -16,6 +16,11 @@ struct Command<'a> {
 }
 
 static CMDS: phf::Map<&str, Command> = phf_map! {
+	"del" => Command {
+		function: cmd_del,
+		syntax: "del KEY",
+		doc: "remove the value associated with the KEY."
+	},
 	"get" => Command {
 		function: cmd_get,
 		syntax: "get KEY",
@@ -88,6 +93,15 @@ fn handle_client(stream: TcpStream) {
 				format_args!("Unknown command \"{}\".\n", req.command)
 			);
 		}
+	}
+}
+
+fn cmd_del(req: Request, writer: &mut BufWriter<&TcpStream>) {
+	if 1 > req.parameters.len() {
+		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
+	} else {
+		kv::del(req.parameters.iter().nth(0).unwrap().as_str());
+		let _ = writer.write("OK\n".as_bytes());
 	}
 }
 

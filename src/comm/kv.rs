@@ -5,6 +5,11 @@ use regex::{Regex, Error};
 
 static M: Mutex<BTreeMap<String, String>>= Mutex::new(BTreeMap::new());
 
+pub fn del(k: &str) -> Option<String> {
+	let mut kv = M.lock().unwrap();
+	kv.remove(k)
+}
+
 pub fn get(k: &str) -> Option<String> {
 	let kv = M.lock().unwrap();
 	kv.get(k).cloned()
