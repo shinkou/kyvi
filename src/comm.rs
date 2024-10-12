@@ -26,6 +26,11 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		syntax: "help [ COMMAND ]",
 		doc: "list commands, or show details of the given COMMAND."
 	},
+	"info" => Command {
+		function: cmd_info,
+		syntax: "info",
+		doc: "display system info."
+	},
 	"keys" => Command {
 		function: cmd_keys,
 		syntax: "keys REGEX",
@@ -152,6 +157,35 @@ fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) {
 			}
 		}
 	}
+}
+
+fn cmd_info(_req: Request, writer: &mut BufWriter<&TcpStream>) {
+	let kv_memsize = kv::memsize();
+	let units = vec!["", "k", "M", "G", "T", "P"];
+	let idx = if 0 < kv_memsize {
+		kv_memsize.ilog2() / 1024i64.ilog2()
+	} else {
+		0
+	};
+	let memsize: f64;
+	if 5 < idx {
+		memsize = (kv_memsize as f64 / 1024f64.powf(5.0)) as f64;
+	} else if 0 < idx {
+		memsize = (kv_memsize as f64 / 1024f64.powf(idx.into())) as f64;
+	} else {
+		memsize = kv_memsize as f64;
+	}
+	let _ = match units.get(if 5 < idx {5usize} else {idx as usize}) {
+		Some(u) =>
+			if 0 < idx {
+				writer.write_fmt(
+					format_args!("Data size: {:.2}{}B\n", memsize, u)
+				)
+			} else {
+				writer.write_fmt(format_args!("Data size: {}B\n", memsize))
+			},
+		None => writer.write_fmt(format_args!("Data size: {}B\n", memsize))
+	};
 }
 
 fn cmd_quit(_req: Request, writer: &mut BufWriter<&TcpStream>) {

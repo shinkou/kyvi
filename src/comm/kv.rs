@@ -25,6 +25,11 @@ pub fn keys(p: &str) -> Result<Vec<String>, Error> {
 	}
 }
 
+pub fn memsize() -> usize {
+	let kv = M.lock().unwrap();
+	kv.iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
+}
+
 pub fn set(k: &str, v: &str) -> Option<String> {
 	let mut kv = M.lock().unwrap();
 	kv.insert(String::from(k), String::from(v))
