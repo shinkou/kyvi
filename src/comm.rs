@@ -53,6 +53,8 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 	}
 };
 
+const UNITS: &'static[&'static str] = &["", "k", "M", "G", "T", "P", "E"];
+
 pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 	let listener: TcpListener = TcpListener::bind(bindaddr)?;
 	let pool = ThreadPool::new(poolsize);
@@ -175,21 +177,20 @@ fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) {
 
 fn cmd_info(_req: Request, writer: &mut BufWriter<&TcpStream>) {
 	let kv_memsize = kv::memsize();
-	let units = vec!["", "k", "M", "G", "T", "P"];
 	let idx = if 0 < kv_memsize {
 		kv_memsize.ilog2() / 1024i64.ilog2()
 	} else {
 		0
 	};
 	let memsize: f64;
-	if 5 < idx {
-		memsize = (kv_memsize as f64 / 1024f64.powf(5.0)) as f64;
+	if 6 < idx {
+		memsize = (kv_memsize as f64 / 1024f64.powf(6.0)) as f64;
 	} else if 0 < idx {
 		memsize = (kv_memsize as f64 / 1024f64.powf(idx.into())) as f64;
 	} else {
 		memsize = kv_memsize as f64;
 	}
-	let _ = match units.get(if 5 < idx {5usize} else {idx as usize}) {
+	let _ = match UNITS.get(if 6 < idx {6usize} else {idx as usize}) {
 		Some(u) =>
 			if 0 < idx {
 				writer.write_fmt(
