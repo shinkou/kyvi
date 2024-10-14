@@ -11,7 +11,7 @@ jobs:
       - name: Print Action Details
         run: |
           echo " Event: ${{github.event_name}}"
-          echo "  User: ${{github.actor}},"
+          echo "  User: ${{github.actor}}"
           echo "Branch: ${{github.ref}}"
           echo "  Repo: ${{github.repository}}"
       - name: Source Checkout
