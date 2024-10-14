@@ -23,31 +23,43 @@ fn tokenize(s: &str) -> Vec<String> {
 				token.push('\\');
 			}
 			is_escaped = !is_escaped;
-		} else if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-			if is_escaped {
-				token.push(c);
-				is_escaped = false;
-			} else if quotechar == '"' || quotechar == '\'' {
-				token.push(c);
-			} else {
-				if 0 < token.len() {
-					tokens.push(token);
-					token = String::new();
-				}
-			}
-		} else if c == '"' || c == '\'' {
-			if is_escaped {
-				token.push(c);
-				is_escaped = false;
-			} else if quotechar == '\0' {
-				quotechar = c;
-			} else if quotechar == c {
-				quotechar = '\0';
-			} else {
-				token.push(c);
-			}
 		} else {
-			token.push(c);
+			if c == ' ' || c == '\n' || c == '\r' || c == '\t' {
+				if is_escaped {
+					token.push(c);
+				} else if quotechar == '"' || quotechar == '\'' {
+					token.push(c);
+				} else {
+					if 0 < token.len() {
+						tokens.push(token);
+						token = String::new();
+					}
+				}
+			} else if c == '"' || c == '\'' {
+				if is_escaped {
+					token.push(c);
+				} else if quotechar == '\0' {
+					quotechar = c;
+				} else if quotechar == c {
+					quotechar = '\0';
+				} else {
+					token.push(c);
+				}
+			} else if is_escaped {
+				if c == 'n' {
+					token.push('\n');
+				} else if c == 'r' {
+					token.push('\r');
+				} else if c == 't' {
+					token.push('\t');
+				} else {
+					token.push('\\');
+					token.push(c);
+				}
+			} else {
+				token.push(c);
+			}
+			is_escaped = false;
 		}
 	}
 	if 0 < token.len() {
@@ -110,5 +122,26 @@ mod tests {
 		assert_eq!(res[0], "They");
 		assert_eq!(res[1], "say");
 		assert_eq!(res[2], "Dennis birthday is \"once in a bluemoon\".");
+	}
+
+	#[test]
+	fn escapables() {
+		let res = tokenize(
+			"col1\\tcol2\\tcol3\\nr1c1\\tr1c2\\tr1c3\\nr2c1\\tr2c2\\tr2c3\\nr3c1\\tr3c2\\tr3c3\\r"
+		);
+		assert_eq!(res.len(), 1);
+		assert_eq!(
+			res[0],
+			"col1\tcol2\tcol3\nr1c1\tr1c2\tr1c3\nr2c1\tr2c2\tr2c3\nr3c1\tr3c2\tr3c3\r"
+		);
+	}
+
+	#[test]
+	fn non_escapables() {
+		let res = tokenize(
+			"\\e\\s\\1"
+		);
+		assert_eq!(res.len(), 1);
+		assert_eq!(res[0], "\\e\\s\\1");
 	}
 }
