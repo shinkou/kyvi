@@ -2,10 +2,10 @@ mod kv;
 mod parser;
 mod request;
 
-use std::io::{BufRead, BufReader, BufWriter, Error, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::net::{TcpListener, TcpStream};
 use threadpool::ThreadPool;
-use phf::{phf_map};
+use phf::phf_map;
 
 use request::Request;
 
@@ -89,9 +89,9 @@ fn handle_client(stream: TcpStream) {
 			(cmd.function)(req, &mut writer);
 			if cmd.function == cmd_quit {return;}
 		} else {
-			let _ = writer.write_fmt(
+			if let Err(_) = writer.write_fmt(
 				format_args!("Unknown command \"{}\".\n", req.command)
-			);
+			) {return;}
 		}
 	}
 }
