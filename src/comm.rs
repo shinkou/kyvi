@@ -81,15 +81,13 @@ fn handle_client(stream: TcpStream) {
 	let _ = writer.flush();
 	loop {
 		buf.clear();
-		let _ = writer.write("kyvi> ".as_bytes());
-		let _ = writer.flush();
-		let _res: Result<usize, Error> = reader.read_line(&mut buf);
+		if let Err(_) = writer.write("kyvi> ".as_bytes()) {return;}
+		if let Err(_) = writer.flush() {return;}
+		if let Err(_) = reader.read_line(&mut buf) {return;}
 		let req = parser::parse(&buf);
 		if let Some(cmd) = CMDS.get(req.command.as_str()) {
 			(cmd.function)(req, &mut writer);
-			if cmd.function == cmd_quit {
-				return;
-			}
+			if cmd.function == cmd_quit {return;}
 		} else {
 			let _ = writer.write_fmt(
 				format_args!("Unknown command \"{}\".\n", req.command)
