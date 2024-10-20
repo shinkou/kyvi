@@ -81,7 +81,7 @@ fn handle_client(stream: TcpStream) {
 	let _ = writer.flush();
 	loop {
 		buf.clear();
-		if let Err(_) = writer.write("kyvi> ".as_bytes()) {return;}
+		if let Err(_) = write!(writer, "kyvi> ") {return;}
 		if let Err(_) = writer.flush() {return;}
 		if let Err(_) = reader.read_line(&mut buf) {return;}
 		let req = parser::parse(&buf);
@@ -89,62 +89,61 @@ fn handle_client(stream: TcpStream) {
 			(cmd.function)(req, &mut writer);
 			if cmd.function == cmd_quit {return;}
 		} else {
-			if let Err(_) = writer.write_fmt(
-				format_args!("Unknown command \"{}\".\n", req.command)
-			) {return;}
+			if let Err(_) = write!(
+				writer,
+				"Unknown command \"{}\".\n",
+				req.command
+			) {
+				return;
+			}
 		}
 	}
 }
 
 fn cmd_del(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	if 1 > req.parameters.len() {
-		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
+	let _ = if 1 > req.parameters.len() {
+		write!(writer, "ERR missing 1 argument\n")
 	} else {
 		kv::del(req.parameters.iter().nth(0).unwrap().as_str());
-		let _ = writer.write("OK\n".as_bytes());
-	}
+		write!(writer, "OK\n")
+	};
 }
 
 fn cmd_get(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	if 1 > req.parameters.len() {
-		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
+	let _ = if 1 > req.parameters.len() {
+		write!(writer, "ERR missing 1 argument\n")
 	} else {
 		match kv::get(req.parameters.iter().nth(0).unwrap().as_str()) {
-			Some(s) => {
-				let _ = writer.write_fmt(format_args!("\"{}\"\n", s));
-			},
-			None => {
-				let _ = writer.write("(nil)\n".as_bytes());
-			}
-		};
-	}
+			Some(s) => write!(writer, "{s}\n"),
+			None => write!(writer, "(nil)\n")
+		}
+	};
 }
 
 fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) {
 	if 1 > req.parameters.len() {
-		let _ = writer.write("Available commands:\n".as_bytes());
+		let _ = write!(writer, "Available commands:\n");
 		let mut cnt = 0;
 		for cmd in CMDS.keys() {
 			cnt += 1;
-			let _ = writer.write_fmt(format_args!("{cnt}) \"{cmd}\"\n"));
+			let _ = write!(writer, "{cnt}) \"{cmd}\"\n");
 		}
-		let _ = writer.write(
+		let _ = write!(
+			writer,
 			"\nUse \"help COMMAND\" for details of each COMMAND.\n"
-				.as_bytes()
 		);
 	} else {
-		match CMDS.get(req.parameters.iter().nth(0).unwrap().as_str()) {
-			Some(cmd) => {
-				let _ = writer.write_fmt(format_args!(
-					"Syntax:\n\t{}\n\nDescription:\n\t{}\n\n",
-					cmd.syntax,
-					cmd.doc
-				));
-			},
-			None => {
-				let _ = writer.write("Unknown command\n".as_bytes());
-			}
-		}
+		let _ = match CMDS.get(
+			req.parameters.iter().nth(0).unwrap().as_str()
+		) {
+			Some(cmd) => write!(
+				writer,
+				"Syntax:\n\t{}\n\nDescription:\n\t{}\n\n",
+				cmd.syntax,
+				cmd.doc
+			),
+			None => write!(writer, "Unknown command\n")
+		};
 	}
 }
 
@@ -158,16 +157,14 @@ fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) {
 					let mut cnt = 0;
 					for k in ks {
 						cnt += 1;
-						let _ = writer.write_fmt(
-							format_args!("{}) \"{}\"\n", cnt, k)
-						);
+						let _ = write!(writer, "{}) \"{}\"\n", cnt, k);
 					}
 				} else {
-					let _ = writer.write("(empty array)\n".as_bytes());
+					let _ = write!(writer, "(empty array)\n");
 				}
 			},
 			Err(e) => {
-				let _ = writer.write_fmt(format_args!("ERR {}\n", e));
+				let _ = write!(writer, "ERR {}\n", e);
 			}
 		}
 	}
@@ -180,24 +177,21 @@ fn cmd_info(_req: Request, writer: &mut BufWriter<&TcpStream>) {
 	} else {
 		0
 	};
-	let memsize: f64;
-	if 6 < idx {
-		memsize = (kv_memsize as f64 / 1024f64.powf(6.0)) as f64;
+	let memsize: f64 = if 6 < idx {
+		(kv_memsize as f64 / 1024f64.powf(6.0)) as f64
 	} else if 0 < idx {
-		memsize = (kv_memsize as f64 / 1024f64.powf(idx.into())) as f64;
+		(kv_memsize as f64 / 1024f64.powf(idx.into())) as f64
 	} else {
-		memsize = kv_memsize as f64;
-	}
+		kv_memsize as f64
+	};
 	let _ = match UNITS.get(if 6 < idx {6usize} else {idx as usize}) {
 		Some(u) =>
 			if 0 < idx {
-				writer.write_fmt(
-					format_args!("Data size: {:.2}{}B\n", memsize, u)
-				)
+				write!(writer, "Data size: {:.2}{}B\n", memsize, u)
 			} else {
-				writer.write_fmt(format_args!("Data size: {}B\n", memsize))
+				write!(writer, "Data size: {}B\n", memsize)
 			},
-		None => writer.write_fmt(format_args!("Data size: {}B\n", memsize))
+		None => write!(writer, "Data size: {}B\n", memsize)
 	};
 }
 
@@ -206,15 +200,15 @@ fn cmd_quit(_req: Request, writer: &mut BufWriter<&TcpStream>) {
 }
 
 fn cmd_set(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	if 1 > req.parameters.len() {
-		let _ = writer.write("ERR missing 2 arguments\n".as_bytes());
+	let _ = if 1 > req.parameters.len() {
+		write!(writer, "ERR missing 2 arguments\n")
 	} else if 2 > req.parameters.len() {
-		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
+		write!(writer, "ERR missing 1 argument\n")
 	} else {
 		let _oldv = kv::set(
 			req.parameters.iter().nth(0).unwrap().as_str(),
 			req.parameters.iter().nth(1).unwrap().as_str()
 		);
-		let _ = writer.write("\"OK\"\n".as_bytes());
-	}
+		write!(writer, "\"OK\"\n")
+	};
 }
