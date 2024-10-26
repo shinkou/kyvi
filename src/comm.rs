@@ -105,8 +105,8 @@ fn handle_client(stream: TcpStream) {
 
 fn cmd_del(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 		std::io::Result<()> {
-	if 1 > req.parameters.len() {
-		write!(writer, "{}", DataType::err("ERR missing 1 argument"))
+	if 1 != req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR wrong number of arguments"))
 	} else {
 		kv::del(req.parameters.iter().nth(0).unwrap().as_str());
 		write!(writer, "{}", DataType::str("OK"))
@@ -115,8 +115,8 @@ fn cmd_del(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 
 fn cmd_get(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 		std::io::Result<()> {
-	if 1 > req.parameters.len() {
-		write!(writer, "{}", DataType::err("ERR missing 1 argument"))
+	if 1 != req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR wrong number of arguments"))
 	} else {
 		match kv::get(req.parameters.iter().nth(0).unwrap()) {
 			Some(v) => write!(writer, "{}", v),
@@ -127,19 +127,9 @@ fn cmd_get(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 
 fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 		std::io::Result<()> {
-	if 1 > req.parameters.len() {
-		let mut ctx = String::new();
-		ctx.push_str("Available commands:\n");
-		let mut cnt = 0;
-		for cmd in CMDS.keys() {
-			cnt += 1;
-			ctx.push_str(&format!("{}) \"{}\"\n", cnt, cmd));
-		}
-		ctx.push_str(
-			"\nUse \"help COMMAND\" for details of each COMMAND."
-		);
-		write!(writer, "{}", DataType::str(&ctx))
-	} else {
+	if 1 < req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR wrong number of arguments"))
+	} else if 1 == req.parameters.len() {
 		match CMDS.get(
 			req.parameters.iter().nth(0).unwrap().as_str()
 		) {
@@ -158,64 +148,81 @@ fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 				DataType::err("ERR unknown command")
 			)
 		}
+	} else {
+		let mut ctx = String::new();
+		ctx.push_str("Available commands:\n");
+		let mut cnt = 0;
+		for cmd in CMDS.keys() {
+			cnt += 1;
+			ctx.push_str(&format!("{}) \"{}\"\n", cnt, cmd));
+		}
+		ctx.push_str(
+			"\nUse \"help COMMAND\" for details of each COMMAND."
+		);
+		write!(writer, "{}", DataType::str(&ctx))
 	}
 }
 
 fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 		std::io::Result<()> {
-	if 1 > req.parameters.len() {
-		write!(writer, "{}", DataType::err("ERR missing 1 argument"))
+	if 1 != req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR wrong number of arguments"))
 	} else {
 		match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
-			Ok(v) => write!(writer, "{}", v),
-			Err(e) => write!(writer, "{}", DataType::bulkErr(&e.to_string()))
+			Ok(v) =>
+				write!(writer, "{}", v),
+			Err(e) =>
+				write!(writer, "{}", DataType::bulkErr(&e.to_string()))
 		}
 	}
 }
 
-fn cmd_info(_req: Request, writer: &mut BufWriter<&TcpStream>) ->
+fn cmd_info(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 		std::io::Result<()> {
-	let kv_memsize = kv::memsize();
-	let idx = if 0 < kv_memsize {
-		kv_memsize.ilog2() / 1024i64.ilog2()
+	if 0 < req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR wrong number of arguments"))
 	} else {
-		0
-	};
-	let memsize: f64 = if 6 < idx {
-		(kv_memsize as f64 / 1024f64.powf(6.0)) as f64
-	} else if 0 < idx {
-		(kv_memsize as f64 / 1024f64.powf(idx.into())) as f64
-	} else {
-		kv_memsize as f64
-	};
-	let ss = match UNITS.get(if 6 < idx {6usize} else {idx as usize}) {
-		Some(u) =>
-			if 0 < idx {
-				format!("Data size: {:.2}{}B", memsize, u)
-			} else {
-				format!("Data size: {}B", memsize)
-			},
-		None => format!("Data size: {}B", memsize)
-	};
-	write!(writer, "{}", DataType::str(&ss))
+		let kv_memsize = kv::memsize();
+		let idx = if 0 < kv_memsize {
+			kv_memsize.ilog2() / 1024i64.ilog2()
+		} else {
+			0
+		};
+		let memsize: f64 = if 6 < idx {
+			(kv_memsize as f64 / 1024f64.powf(6.0)) as f64
+		} else if 0 < idx {
+			(kv_memsize as f64 / 1024f64.powf(idx.into())) as f64
+		} else {
+			kv_memsize as f64
+		};
+		let ss = match UNITS.get(if 6 < idx {6usize} else {idx as usize}) {
+			Some(u) =>
+				if 0 < idx {
+					format!("Data size: {:.2}{}B", memsize, u)
+				} else {
+					format!("Data size: {}B", memsize)
+				},
+			None => format!("Data size: {}B", memsize)
+		};
+		write!(writer, "{}", DataType::str(&ss))
+	}
 }
 
-fn cmd_quit(_req: Request, writer: &mut BufWriter<&TcpStream>) ->
+fn cmd_quit(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 		std::io::Result<()> {
-	if let Err(e) = write!(writer, "{}", DataType::str("OK")) {
+	if 0 < req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR wrong number of arguments"))
+	} else if let Err(e) = write!(writer, "{}", DataType::str("OK")) {
 		Err(e)
-	}
-	else {
+	} else {
 		writer.flush()
 	}
 }
 
 fn cmd_set(req: Request, writer: &mut BufWriter<&TcpStream>) ->
 		std::io::Result<()> {
-	let dtype = if 1 > req.parameters.len() {
-		DataType::err("ERR missing 2 arguments")
-	} else if 2 > req.parameters.len() {
-		DataType::err("ERR missing 1 argument")
+	let dtype = if 2 != req.parameters.len() {
+		DataType::err("ERR wrong number of arguments")
 	} else {
 		let _oldv = kv::set(
 			req.parameters.iter().nth(0).unwrap().as_str(),
