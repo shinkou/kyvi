@@ -3,27 +3,31 @@ use std::sync::Mutex;
 
 use regex::{Regex, Error};
 
-static M: Mutex<BTreeMap<String, String>>= Mutex::new(BTreeMap::new());
+use super::datatype::DataType;
 
-pub fn del(k: &str) -> Option<String> {
+static M: Mutex<BTreeMap<String, DataType>>= Mutex::new(BTreeMap::new());
+
+pub fn del(k: &str) -> Option<DataType> {
 	let mut kv = M.lock().unwrap();
 	kv.remove(k)
 }
 
-pub fn get(k: &str) -> Option<String> {
+pub fn get(k: &str) -> Option<DataType> {
 	let kv = M.lock().unwrap();
 	kv.get(k).cloned()
 }
 
-pub fn keys(p: &str) -> Result<Vec<String>, Error> {
+pub fn keys(p: &str) -> Result<DataType, Error> {
 	match Regex::new(p) {
 		Ok(re) => {
 			let kv = M.lock().unwrap();
 			Ok(
-				kv.keys()
-					.filter(|s| re.is_match(s))
-					.map(|s| s.to_string())
-					.collect()
+				DataType::List(
+					kv.keys()
+						.filter(|s| re.is_match(s))
+						.map(|s| DataType::bulkStr(s))
+						.collect()
+				)
 			)
 		},
 		Err(e) => Err(e)
@@ -35,9 +39,9 @@ pub fn memsize() -> usize {
 	kv.iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
 }
 
-pub fn set(k: &str, v: &str) -> Option<String> {
+pub fn set(k: &str, v: &str) -> Option<DataType> {
 	let mut kv = M.lock().unwrap();
-	kv.insert(String::from(k), String::from(v))
+	kv.insert(String::from(k), DataType::bulkStr(v))
 }
 
 #[cfg(test)]
@@ -51,24 +55,24 @@ mod tests {
 		set("first", "1st");
 		set("second", "2nd");
 		set("third", "3rd");
-		assert_eq!(get("first"), Some("1st".to_string()));
-		assert_eq!(get("second"), Some("2nd".to_string()));
-		assert_eq!(get("third"), Some("3rd".to_string()));
-		assert_eq!(keys(".*"), Ok(vec![
-			"first".to_string(),
-			"second".to_string(),
-			"third".to_string()
-		]));
+		assert_eq!(get("first"), Some(DataType::bulkStr("1st")));
+		assert_eq!(get("second"), Some(DataType::bulkStr("2nd")));
+		assert_eq!(get("third"), Some(DataType::bulkStr("3rd")));
+		assert_eq!(keys(".*"), Ok(DataType::List(vec![
+			DataType::bulkStr("first"),
+			DataType::bulkStr("second"),
+			DataType::bulkStr("third")
+		])));
 		assert_eq!(memsize(), 25usize);
 		del("first");
 		assert_eq!(get("first"), None);
-		assert_eq!(get("second"), Some("2nd".to_string()));
-		assert_eq!(get("third"), Some("3rd".to_string()));
+		assert_eq!(get("second"), Some(DataType::bulkStr("2nd")));
+		assert_eq!(get("third"), Some(DataType::bulkStr("3rd")));
 		assert_eq!(memsize(), 17usize);
 		del("second");
 		assert_eq!(get("first"), None);
 		assert_eq!(get("second"), None);
-		assert_eq!(get("third"), Some("3rd".to_string()));
+		assert_eq!(get("third"), Some(DataType::bulkStr("3rd")));
 		assert_eq!(memsize(), 8usize);
 		del("third");
 		assert_eq!(get("first"), None);
@@ -83,14 +87,14 @@ mod tests {
 		set("one", "un");
 		set("two", "deux");
 		set("three", "trois");
-		assert_eq!(get("one"), Some("un".to_string()));
-		assert_eq!(get("two"), Some("deux".to_string()));
-		assert_eq!(get("three"), Some("trois".to_string()));
-		assert_eq!(keys(".*"), Ok(vec![
-			"one".to_string(),
-			"three".to_string(),
-			"two".to_string()
-		]));
+		assert_eq!(get("one"), Some(DataType::bulkStr("un")));
+		assert_eq!(get("two"), Some(DataType::bulkStr("deux")));
+		assert_eq!(get("three"), Some(DataType::bulkStr("trois")));
+		assert_eq!(keys(".*"), Ok(DataType::List(vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("three"),
+			DataType::bulkStr("two")
+		])));
 		assert_eq!(memsize(), 22usize);
 		del("one");
 		del("two");

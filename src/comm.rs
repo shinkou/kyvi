@@ -1,3 +1,4 @@
+mod datatype;
 mod kv;
 mod parser;
 mod request;
@@ -7,10 +8,12 @@ use std::net::{TcpListener, TcpStream};
 use threadpool::ThreadPool;
 use phf::phf_map;
 
+use datatype::DataType;
 use request::Request;
 
 struct Command<'a> {
-	function: fn(Request, &mut BufWriter<&TcpStream>),
+	function: fn(Request, &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()>,
 	syntax: &'a str,
 	doc: &'a str
 }
@@ -77,22 +80,22 @@ fn handle_client(stream: TcpStream) {
 	let mut buf: String = String::new();
 	let mut reader: BufReader<&TcpStream> = BufReader::new(&stream);
 	let mut writer: BufWriter<&TcpStream> = BufWriter::new(&stream);
-	let _ = writer.write("Welcome to kyvi!\n".as_bytes());
-	let _ = writer.flush();
 	loop {
 		buf.clear();
-		if let Err(_) = write!(writer, "kyvi> ") {return;}
 		if let Err(_) = writer.flush() {return;}
 		if let Err(_) = reader.read_line(&mut buf) {return;}
 		let req = parser::parse(&buf);
 		if let Some(cmd) = CMDS.get(req.command.as_str()) {
-			(cmd.function)(req, &mut writer);
+			if let Err(_) = (cmd.function)(req, &mut writer) {return;}
 			if cmd.function == cmd_quit {return;}
 		} else {
 			if let Err(_) = write!(
 				writer,
-				"Unknown command \"{}\".\n",
-				req.command
+				"{}",
+				DataType::err(&format!(
+					"ERR unknown command \"{}\"",
+					req.command
+				))
 			) {
 				return;
 			}
@@ -100,77 +103,78 @@ fn handle_client(stream: TcpStream) {
 	}
 }
 
-fn cmd_del(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	let _ = if 1 > req.parameters.len() {
-		write!(writer, "ERR missing 1 argument\n")
+fn cmd_del(req: Request, writer: &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()> {
+	if 1 > req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR missing 1 argument"))
 	} else {
 		kv::del(req.parameters.iter().nth(0).unwrap().as_str());
-		write!(writer, "OK\n")
-	};
+		write!(writer, "{}", DataType::str("OK"))
+	}
 }
 
-fn cmd_get(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	let _ = if 1 > req.parameters.len() {
-		write!(writer, "ERR missing 1 argument\n")
-	} else {
-		match kv::get(req.parameters.iter().nth(0).unwrap().as_str()) {
-			Some(s) => write!(writer, "{s}\n"),
-			None => write!(writer, "(nil)\n")
-		}
-	};
-}
-
-fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) {
+fn cmd_get(req: Request, writer: &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()> {
 	if 1 > req.parameters.len() {
-		let _ = write!(writer, "Available commands:\n");
+		write!(writer, "{}", DataType::err("ERR missing 1 argument"))
+	} else {
+		match kv::get(req.parameters.iter().nth(0).unwrap()) {
+			Some(v) => write!(writer, "{}", v),
+			None => write!(writer, "{}", DataType::Null)
+		}
+	}
+}
+
+fn cmd_help(req: Request, writer: &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()> {
+	if 1 > req.parameters.len() {
+		let mut ctx = String::new();
+		ctx.push_str("Available commands:\n");
 		let mut cnt = 0;
 		for cmd in CMDS.keys() {
 			cnt += 1;
-			let _ = write!(writer, "{cnt}) \"{cmd}\"\n");
+			ctx.push_str(&format!("{}) \"{}\"\n", cnt, cmd));
 		}
-		let _ = write!(
-			writer,
-			"\nUse \"help COMMAND\" for details of each COMMAND.\n"
+		ctx.push_str(
+			"\nUse \"help COMMAND\" for details of each COMMAND."
 		);
+		write!(writer, "{}", DataType::str(&ctx))
 	} else {
-		let _ = match CMDS.get(
+		match CMDS.get(
 			req.parameters.iter().nth(0).unwrap().as_str()
 		) {
 			Some(cmd) => write!(
 				writer,
-				"Syntax:\n\t{}\n\nDescription:\n\t{}\n\n",
-				cmd.syntax,
-				cmd.doc
+				"{}",
+				DataType::bulkStr(&format!(
+					"Syntax:\n\t{}\n\nDescription:\n\t{}\n",
+					cmd.syntax,
+					cmd.doc
+				))
 			),
-			None => write!(writer, "Unknown command\n")
-		};
-	}
-}
-
-fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	if 1 > req.parameters.len() {
-		let _ = writer.write("ERR missing 1 argument\n".as_bytes());
-	} else {
-		match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
-			Ok(ks) => {
-				if 0 < ks.len() {
-					let mut cnt = 0;
-					for k in ks {
-						cnt += 1;
-						let _ = write!(writer, "{}) \"{}\"\n", cnt, k);
-					}
-				} else {
-					let _ = write!(writer, "(empty array)\n");
-				}
-			},
-			Err(e) => {
-				let _ = write!(writer, "ERR {}\n", e);
-			}
+			None => write!(
+				writer,
+				"{}",
+				DataType::err("ERR unknown command")
+			)
 		}
 	}
 }
 
-fn cmd_info(_req: Request, writer: &mut BufWriter<&TcpStream>) {
+fn cmd_keys(req: Request, writer: &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()> {
+	if 1 > req.parameters.len() {
+		write!(writer, "{}", DataType::err("ERR missing 1 argument"))
+	} else {
+		match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
+			Ok(v) => write!(writer, "{}", v),
+			Err(e) => write!(writer, "{}", DataType::bulkErr(&e.to_string()))
+		}
+	}
+}
+
+fn cmd_info(_req: Request, writer: &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()> {
 	let kv_memsize = kv::memsize();
 	let idx = if 0 < kv_memsize {
 		kv_memsize.ilog2() / 1024i64.ilog2()
@@ -184,31 +188,40 @@ fn cmd_info(_req: Request, writer: &mut BufWriter<&TcpStream>) {
 	} else {
 		kv_memsize as f64
 	};
-	let _ = match UNITS.get(if 6 < idx {6usize} else {idx as usize}) {
+	let ss = match UNITS.get(if 6 < idx {6usize} else {idx as usize}) {
 		Some(u) =>
 			if 0 < idx {
-				write!(writer, "Data size: {:.2}{}B\n", memsize, u)
+				format!("Data size: {:.2}{}B", memsize, u)
 			} else {
-				write!(writer, "Data size: {}B\n", memsize)
+				format!("Data size: {}B", memsize)
 			},
-		None => write!(writer, "Data size: {}B\n", memsize)
+		None => format!("Data size: {}B", memsize)
 	};
+	write!(writer, "{}", DataType::str(&ss))
 }
 
-fn cmd_quit(_req: Request, writer: &mut BufWriter<&TcpStream>) {
-	let _ = writer.flush();
+fn cmd_quit(_req: Request, writer: &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()> {
+	if let Err(e) = write!(writer, "{}", DataType::str("OK")) {
+		Err(e)
+	}
+	else {
+		writer.flush()
+	}
 }
 
-fn cmd_set(req: Request, writer: &mut BufWriter<&TcpStream>) {
-	let _ = if 1 > req.parameters.len() {
-		write!(writer, "ERR missing 2 arguments\n")
+fn cmd_set(req: Request, writer: &mut BufWriter<&TcpStream>) ->
+		std::io::Result<()> {
+	let dtype = if 1 > req.parameters.len() {
+		DataType::err("ERR missing 2 arguments")
 	} else if 2 > req.parameters.len() {
-		write!(writer, "ERR missing 1 argument\n")
+		DataType::err("ERR missing 1 argument")
 	} else {
 		let _oldv = kv::set(
 			req.parameters.iter().nth(0).unwrap().as_str(),
 			req.parameters.iter().nth(1).unwrap().as_str()
 		);
-		write!(writer, "\"OK\"\n")
+		DataType::str("OK")
 	};
+	write!(writer, "{}", dtype)
 }
