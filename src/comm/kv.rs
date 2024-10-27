@@ -8,40 +8,31 @@ use super::datatype::DataType;
 static M: Mutex<BTreeMap<String, DataType>>= Mutex::new(BTreeMap::new());
 
 pub fn del(k: &str) -> Option<DataType> {
-	let mut kv = M.lock().unwrap();
-	kv.remove(k)
+	M.lock().unwrap().remove(k)
 }
 
 pub fn get(k: &str) -> Option<DataType> {
-	let kv = M.lock().unwrap();
-	kv.get(k).cloned()
+	M.lock().unwrap().get(k).cloned()
 }
 
 pub fn keys(p: &str) -> Result<DataType, Error> {
-	match Regex::new(p) {
-		Ok(re) => {
-			let kv = M.lock().unwrap();
-			Ok(
-				DataType::List(
-					kv.keys()
-						.filter(|s| re.is_match(s))
-						.map(|s| DataType::bulkStr(s))
-						.collect()
-				)
-			)
-		},
-		Err(e) => Err(e)
-	}
+	let re = Regex::new(p)?;
+	Ok(
+		DataType::List(
+			M.lock().unwrap().keys()
+				.filter(|s| re.is_match(s))
+				.map(|s| DataType::bulkStr(s))
+				.collect()
+		)
+	)
 }
 
 pub fn memsize() -> usize {
-	let kv = M.lock().unwrap();
-	kv.iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
+	M.lock().unwrap().iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
 }
 
 pub fn set(k: &str, v: &str) -> Option<DataType> {
-	let mut kv = M.lock().unwrap();
-	kv.insert(String::from(k), DataType::bulkStr(v))
+	M.lock().unwrap().insert(String::from(k), DataType::bulkStr(v))
 }
 
 #[cfg(test)]
