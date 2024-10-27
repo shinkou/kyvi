@@ -63,9 +63,9 @@ impl fmt::Display for DataType {
 			DataType::Integer(i) =>
 				write!(f, ":{}\n", i),
 			DataType::List(l) => {
-				if let Err(e) = write!(f, "*{}\n", l.len()) {return Err(e);}
+				write!(f, "*{}\n", l.len())?;
 				for e in l.iter() {
-					if let Err(e) = write!(f, "{}", e) {return Err(e);}
+					write!(f, "{}", e)?;
 				}
 				Ok(())
 			},
