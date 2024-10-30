@@ -1,15 +1,11 @@
 use super::Request;
 
+const EMPTY_STRING: String = String::new();
+
 pub fn parse(request: &str) -> Request {
-	if let Some((cmd, prms)) = request.trim().split_once(" ") {
-		let command = String::from(cmd);
-		let parameters = tokenize(prms);
-		Request {command, parameters}
-	} else {
-		let command = request.trim().to_string();
-		let parameters = Vec::new();
-		Request {command, parameters}
-	}
+	let mut prms = tokenize(request);
+	let cmd = if 0 < prms.len() {prms.remove(0)} else {EMPTY_STRING};
+	Request {command: cmd, parameters: prms}
 }
 
 fn tokenize(s: &str) -> Vec<String> {
