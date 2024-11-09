@@ -12,8 +12,7 @@ use datatype::DataType;
 use request::Request;
 
 struct Command<'a> {
-	function: fn(&Request, &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()>,
+	function: fn(&Request) -> DataType,
 	syntax: &'a str,
 	validation: fn(&Request) -> bool,
 	doc: &'a str
@@ -96,7 +95,11 @@ fn handle_client(stream: TcpStream) {
 		match CMDS.get(req.command.as_str()) {
 			Some(cmd) => {
 				if (cmd.validation)(&req) {
-					if let Err(_) = (cmd.function)(&req, &mut writer) {
+					if let Err(_) = write!(
+							writer,
+							"{}",
+							(cmd.function)(&req)
+						) {
 						return;
 					}
 					if cmd.function == cmd_quit {
@@ -128,72 +131,55 @@ fn handle_client(stream: TcpStream) {
 	}
 }
 
-fn cmd_del(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()> {
+fn cmd_del(req: &Request) -> DataType {
 	kv::del(req.parameters.iter().nth(0).unwrap().as_str());
-	write!(writer, "{}", DataType::str("OK"))
+	DataType::str("OK")
 }
 
-fn cmd_get(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()> {
-	write!(
-		writer,
-		"{}",
-		match kv::get(req.parameters.iter().nth(0).unwrap()) {
-			Some(v) => v,
-			None => DataType::Null
+fn cmd_get(req: &Request) -> DataType {
+	match kv::get(req.parameters.iter().nth(0).unwrap()) {
+		Some(v) => v,
+		None => DataType::Null
+	}
+}
+
+fn cmd_help(req: &Request) -> DataType {
+	if 1 == req.parameters.len() {
+		let prm = req.parameters.iter().nth(0).unwrap().as_str();
+		match CMDS.get(prm) {
+			Some(cmd) => DataType::bulkStr(&format!(
+					"Syntax:\n\t{}\n\nDescription:\n\t{}\n",
+					cmd.syntax,
+					cmd.doc
+				)),
+			None => DataType::err(&format!(
+					"ERR unknown command \"{}\"",
+					prm
+				))
 		}
-	)
-}
-
-fn cmd_help(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()> {
-	write!(
-		writer,
-		"{}",
-		if 1 == req.parameters.len() {
-			let prm = req.parameters.iter().nth(0).unwrap().as_str();
-			match CMDS.get(prm) {
-				Some(cmd) => DataType::bulkStr(&format!(
-						"Syntax:\n\t{}\n\nDescription:\n\t{}\n",
-						cmd.syntax,
-						cmd.doc
-					)),
-				None => DataType::err(&format!(
-						"ERR unknown command \"{}\"",
-						prm
-					))
-			}
-		} else {
-			let mut ctx = String::new();
-			ctx.push_str("Available commands:\n");
-			let mut cnt = 0;
-			for cmd in CMDS.keys() {
-				cnt += 1;
-				ctx.push_str(&format!("{}) \"{}\"\n", cnt, cmd));
-			}
-			ctx.push_str(
-				"\nUse \"help COMMAND\" for details of each COMMAND."
-			);
-			DataType::bulkStr(&ctx)
+	} else {
+		let mut ctx = String::new();
+		ctx.push_str("Available commands:\n");
+		let mut cnt = 0;
+		for cmd in CMDS.keys() {
+			cnt += 1;
+			ctx.push_str(&format!("{}) \"{}\"\n", cnt, cmd));
 		}
-	)
+		ctx.push_str(
+			"\nUse \"help COMMAND\" for details of each COMMAND."
+		);
+		DataType::bulkStr(&ctx)
+	}
 }
 
-fn cmd_keys(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()> {
-	write!(
-		writer,
-		"{}",
-		match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
-			Ok(v) => v,
-			Err(e) => DataType::bulkErr(&e.to_string())
-		}
-	)
+fn cmd_keys(req: &Request) -> DataType {
+	match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::bulkErr(&e.to_string())
+	}
 }
 
-fn cmd_info(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()> {
+fn cmd_info(_req: &Request) -> DataType {
 	let kv_memsize = kv::memsize();
 	let idx = if 0 < kv_memsize {
 		kv_memsize.ilog2() / 1024i64.ilog2()
@@ -216,19 +202,17 @@ fn cmd_info(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
 			},
 		None => format!("Data size: {}B", memsize)
 	};
-	write!(writer, "{}", DataType::str(&ss))
+	DataType::str(&ss)
 }
 
-fn cmd_quit(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()> {
-	write!(writer, "{}", DataType::str("OK"))
+fn cmd_quit(_req: &Request) -> DataType {
+	DataType::str("OK")
 }
 
-fn cmd_set(req: &Request, writer: &mut BufWriter<&TcpStream>) ->
-		std::io::Result<()> {
+fn cmd_set(req: &Request) -> DataType {
 	let _oldv = kv::set(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	);
-	write!(writer, "{}", DataType::str("OK"))
+	DataType::str("OK")
 }
