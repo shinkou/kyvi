@@ -18,15 +18,15 @@ pub enum DataType {
 impl DataType {
 	pub fn capacity(&self) -> usize {
 		match self {
-			DataType::BigInteger(_) => i128::BITS as usize,
-			DataType::Boolean(_) => 1 as usize,
+			DataType::BigInteger(_) => 16usize,
+			DataType::Boolean(_) => 1usize,
 			DataType::BulkError(s) | DataType::BulkString(s) |
 				DataType::SimpleError(s) | DataType::SimpleString(s) =>
 				s.capacity(),
-			DataType::Double(_) => 8 as usize,
-			DataType::Integer(_) => i64::BITS as usize,
+			DataType::Double(_) => 8usize,
+			DataType::Integer(_) => 8usize,
 			DataType::List(l) => l.len(),
-			DataType::Null => 0 as usize
+			DataType::Null => 0usize
 		}
 	}
 
