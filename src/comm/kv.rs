@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
 use regex::{Regex, Error};
@@ -43,6 +43,40 @@ pub fn del(k: &str) -> Option<DataType> {
 
 pub fn get(k: &str) -> Option<DataType> {
 	M.lock().unwrap().get(k).cloned()
+}
+
+pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
+	if 0 != nvs.len() % 2 {
+		return Err("Number of elements must a multiple of 2");
+	}
+	let mut m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(h) => {
+					let mut somehmap = h.clone();
+					nvs.chunks(2).for_each(|x| {somehmap.insert(
+						DataType::bulkStr(&x[0]),
+						DataType::bulkStr(&x[1])
+					);});
+					let hmap2save = DataType::hset(&somehmap);
+					m.insert(String::from(k), hmap2save);
+					Ok(DataType::Integer(somehmap.len().try_into().unwrap()))
+				},
+				_ => Err("Key must associate with a hash")
+			}
+		},
+		None => {
+			let mut somehmap: HashMap<DataType, DataType> = HashMap::new();
+			nvs.chunks(2).for_each(|x| {somehmap.insert(
+				DataType::bulkStr(&x[0]),
+				DataType::bulkStr(&x[1])
+			);});
+			let hmap2save = DataType::hset(&somehmap);
+			m.insert(String::from(k), hmap2save);
+			Ok(DataType::Integer(somehmap.len().try_into().unwrap()))
+		}
+	}
 }
 
 pub fn incr(k: &str) -> Result<DataType, &str> {
