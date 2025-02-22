@@ -45,6 +45,22 @@ pub fn get(k: &str) -> Option<DataType> {
 	M.lock().unwrap().get(k).cloned()
 }
 
+pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
+	let m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(h) => match h.get(&DataType::bulkStr(f)) {
+					Some(v) => Ok(v.clone()),
+					None => Ok(DataType::Null)
+				}
+				_ => Err("Key must associate with a hash")
+			}
+		},
+		None => Err("Key must associate with a hash")
+	}
+}
+
 pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
 	if 0 != nvs.len() % 2 {
 		return Err("Number of elements must a multiple of 2");

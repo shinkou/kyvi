@@ -49,6 +49,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {2 > r.parameters.len()},
 		doc: "list commands, or show details of the given COMMAND."
 	},
+	"hget" => Command {
+		function: cmd_hget,
+		syntax: "hget KEY FIELD",
+		validation: |r| {1 <= r.parameters.len()},
+		doc: "get specified field from the hash stored at key"
+	},
 	"hset" => Command {
 		function: cmd_hset,
 		syntax: "hset KEY FIELD VALUE [ FIELD VALUE ... ]",
@@ -167,6 +173,16 @@ fn cmd_get(req: &Request) -> DataType {
 	match kv::get(req.parameters.iter().nth(0).unwrap()) {
 		Some(v) => v,
 		None => DataType::Null
+	}
+}
+
+fn cmd_hget(req: &Request) -> DataType {
+	match kv::hget(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str()
+	) {
+		Ok(v) => v,
+		Err(e) => DataType::bulkErr(&e.to_string())
 	}
 }
 
