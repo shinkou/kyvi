@@ -18,9 +18,14 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 					Ok(DataType::Integer(x))
 				},
 				DataType::BulkString(s) => {
-					let x: i64 = s.parse::<i64>().unwrap() - 1;
-					m.insert(String::from(k), DataType::Integer(x));
-					Ok(DataType::Integer(x))
+					match s.parse::<i64>() {
+						Ok(i) => {
+							let x: i64 = i - 1;
+							m.insert(String::from(k), DataType::Integer(x));
+							Ok(DataType::Integer(x))
+						},
+						Err(_) => Err("Target must be integer")
+					}
 				},
 				_ => Err("Target must be integer")
 			}
@@ -51,9 +56,14 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 					Ok(DataType::Integer(x))
 				},
 				DataType::BulkString(s) => {
-					let x: i64 = s.parse::<i64>().unwrap() + 1;
-					m.insert(String::from(k), DataType::Integer(x));
-					Ok(DataType::Integer(x))
+					match s.parse::<i64>() {
+						Ok(i) => {
+							let x: i64 = i + 1;
+							m.insert(String::from(k), DataType::Integer(x));
+							Ok(DataType::Integer(x))
+						},
+						Err(_) => Err("Target must be integer")
+					}
 				},
 				_ => Err("Target must be integer")
 			}
