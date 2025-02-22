@@ -7,12 +7,62 @@ use super::datatype::DataType;
 
 static M: Mutex<BTreeMap<String, DataType>>= Mutex::new(BTreeMap::new());
 
+pub fn decr(k: &str) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::Integer(i) => {
+					let x: i64 = i - 1;
+					m.insert(String::from(k), DataType::Integer(x));
+					Ok(DataType::Integer(x))
+				},
+				DataType::BulkString(s) => {
+					let x: i64 = s.parse::<i64>().unwrap() - 1;
+					m.insert(String::from(k), DataType::Integer(x));
+					Ok(DataType::Integer(x))
+				},
+				_ => Err("Target must be integer")
+			}
+		},
+		None => {
+			m.insert(String::from(k), DataType::Integer(-1));
+			Ok(DataType::Integer(-1))
+		}
+	}
+}
+
 pub fn del(k: &str) -> Option<DataType> {
 	M.lock().unwrap().remove(k)
 }
 
 pub fn get(k: &str) -> Option<DataType> {
 	M.lock().unwrap().get(k).cloned()
+}
+
+pub fn incr(k: &str) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::Integer(i) => {
+					let x: i64 = i + 1;
+					m.insert(String::from(k), DataType::Integer(x));
+					Ok(DataType::Integer(x))
+				},
+				DataType::BulkString(s) => {
+					let x: i64 = s.parse::<i64>().unwrap() + 1;
+					m.insert(String::from(k), DataType::Integer(x));
+					Ok(DataType::Integer(x))
+				},
+				_ => Err("Target must be integer")
+			}
+		},
+		None => {
+			m.insert(String::from(k), DataType::Integer(1));
+			Ok(DataType::Integer(1))
+		}
+	}
 }
 
 pub fn keys(p: &str) -> Result<DataType, Error> {

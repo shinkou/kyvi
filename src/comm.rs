@@ -19,6 +19,12 @@ struct Command<'a> {
 }
 
 static CMDS: phf::Map<&str, Command> = phf_map! {
+	"decr" => Command {
+		function: cmd_decr,
+		syntax: "decr KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "decrement the integer value associated with the KEY."
+	},
 	"del" => Command {
 		function: cmd_del,
 		syntax: "del KEY",
@@ -30,6 +36,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		syntax: "get KEY",
 		validation: |r| {1 == r.parameters.len()},
 		doc: "obtain value associated with the KEY."
+	},
+	"incr" => Command {
+		function: cmd_incr,
+		syntax: "incr KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "increment the integer value associated with the KEY."
 	},
 	"help" => Command {
 		function: cmd_help,
@@ -131,6 +143,13 @@ fn handle_client(stream: TcpStream) {
 	}
 }
 
+fn cmd_decr(req: &Request) -> DataType {
+	match kv::decr(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::bulkErr(&e.to_string())
+	}
+}
+
 fn cmd_del(req: &Request) -> DataType {
 	kv::del(req.parameters.iter().nth(0).unwrap().as_str());
 	DataType::str("OK")
@@ -174,6 +193,13 @@ fn cmd_help(req: &Request) -> DataType {
 
 fn cmd_keys(req: &Request) -> DataType {
 	match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::bulkErr(&e.to_string())
+	}
+}
+
+fn cmd_incr(req: &Request) -> DataType {
+	match kv::incr(req.parameters.iter().nth(0).unwrap().as_str()) {
 		Ok(v) => v,
 		Err(e) => DataType::bulkErr(&e.to_string())
 	}
