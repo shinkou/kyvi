@@ -49,6 +49,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {2 > r.parameters.len()},
 		doc: "list commands, or show details of the given COMMAND."
 	},
+	"hdel" => Command {
+		function: cmd_hdel,
+		syntax: "hdel KEY FIELD [ FIELD ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "remove specified fields existed in the hash stored at key"
+	},
 	"hget" => Command {
 		function: cmd_hget,
 		syntax: "hget KEY FIELD",
@@ -59,7 +65,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_hset,
 		syntax: "hset KEY FIELD VALUE [ FIELD VALUE ... ]",
 		validation: |r| {
-			3 <= r.parameters.len() && 1 == r.parameters.len() % 2
+			2 < r.parameters.len() && 1 == r.parameters.len() % 2
 		},
 		doc: "set specified fields to values in the hash stored at key"
 	},
@@ -173,6 +179,13 @@ fn cmd_get(req: &Request) -> DataType {
 	match kv::get(req.parameters.iter().nth(0).unwrap()) {
 		Some(v) => v,
 		None => DataType::Null
+	}
+}
+
+fn cmd_hdel(req: &Request) -> DataType {
+	match kv::hdel(&req.parameters[0], req.parameters[1..].to_vec()) {
+		Ok(v) => v,
+		Err(e) => DataType::bulkErr(&e.to_string())
 	}
 }
 

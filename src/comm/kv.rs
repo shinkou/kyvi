@@ -45,6 +45,30 @@ pub fn get(k: &str) -> Option<DataType> {
 	M.lock().unwrap().get(k).cloned()
 }
 
+pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(h) => {
+					let mut somehmap = h.clone();
+					let cnt = fs.into_iter().map(|f| {
+						match somehmap.remove(&DataType::bulkStr(&f)) {
+							Some(_) => 1i64,
+							None => 0i64
+						}
+					}).sum::<i64>();
+					let hmap2save = DataType::hset(&somehmap);
+					m.insert(String::from(k), hmap2save);
+					Ok(DataType::Integer(cnt))
+				}
+				_ => Err("Key must associate with a hash")
+			}
+		},
+		None => Err("Key must associate with a hash")
+	}
+}
+
 pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 	let m = M.lock().unwrap();
 	match m.get(k) {
