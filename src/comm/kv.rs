@@ -9,13 +9,12 @@ static M: Mutex<BTreeMap<String, DataType>>= Mutex::new(BTreeMap::new());
 
 pub fn decr(k: &str) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
-	match m.get(k) {
+	match m.get_mut(k) {
 		Some(data) => {
 			match data {
 				DataType::Integer(i) => {
-					let x: i64 = i - 1;
-					m.insert(String::from(k), DataType::Integer(x));
-					Ok(DataType::Integer(x))
+					*i -= 1;
+					Ok(DataType::Integer(*i))
 				},
 				DataType::BulkString(s) => {
 					match s.parse::<i64>() {
@@ -47,19 +46,16 @@ pub fn get(k: &str) -> Option<DataType> {
 
 pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
-	match m.get(k) {
+	match m.get_mut(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(h) => {
-					let mut somehmap = h.clone();
+				DataType::Hashset(hmap) => {
 					let cnt = fs.into_iter().map(|f| {
-						match somehmap.remove(&DataType::bulkStr(&f)) {
+						match hmap.remove(&DataType::bulkStr(&f)) {
 							Some(_) => 1i64,
 							None => 0i64
 						}
 					}).sum::<i64>();
-					let hmap2save = DataType::hset(&somehmap);
-					m.insert(String::from(k), hmap2save);
 					Ok(DataType::Integer(cnt))
 				}
 				_ => Err("Key must associate with a hash")
@@ -90,18 +86,15 @@ pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
 		return Err("Number of elements must a multiple of 2");
 	}
 	let mut m = M.lock().unwrap();
-	match m.get(k) {
+	match m.get_mut(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(h) => {
-					let mut somehmap = h.clone();
-					nvs.chunks(2).for_each(|x| {somehmap.insert(
+				DataType::Hashset(hmap) => {
+					nvs.chunks(2).for_each(|x| {hmap.insert(
 						DataType::bulkStr(&x[0]),
 						DataType::bulkStr(&x[1])
 					);});
-					let hmap2save = DataType::hset(&somehmap);
-					m.insert(String::from(k), hmap2save);
-					Ok(DataType::Integer(somehmap.len().try_into().unwrap()))
+					Ok(DataType::Integer(hmap.len().try_into().unwrap()))
 				},
 				_ => Err("Key must associate with a hash")
 			}
@@ -121,13 +114,12 @@ pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
 
 pub fn incr(k: &str) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
-	match m.get(k) {
+	match m.get_mut(k) {
 		Some(data) => {
 			match data {
 				DataType::Integer(i) => {
-					let x: i64 = i + 1;
-					m.insert(String::from(k), DataType::Integer(x));
-					Ok(DataType::Integer(x))
+					*i += 1;
+					Ok(DataType::Integer(*i))
 				},
 				DataType::BulkString(s) => {
 					match s.parse::<i64>() {
