@@ -9,18 +9,17 @@ static M: Mutex<BTreeMap<String, DataType>>= Mutex::new(BTreeMap::new());
 
 pub fn decr(k: &str) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
-	match m.get_mut(k) {
+	match m.get(k) {
 		Some(data) => {
 			match data {
-				DataType::Integer(i) => {
-					*i -= 1;
-					Ok(DataType::Integer(*i))
-				},
 				DataType::BulkString(s) => {
 					match s.parse::<i64>() {
 						Ok(i) => {
 							let x: i64 = i - 1;
-							m.insert(String::from(k), DataType::Integer(x));
+							m.insert(
+								String::from(k),
+								DataType::BulkString(x.to_string())
+							);
 							Ok(DataType::Integer(x))
 						},
 						Err(_) => Err("Target must be integer")
@@ -30,7 +29,7 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 			}
 		},
 		None => {
-			m.insert(String::from(k), DataType::Integer(-1));
+			m.insert(String::from(k), DataType::bulkStr("-1"));
 			Ok(DataType::Integer(-1))
 		}
 	}
@@ -117,15 +116,14 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 	match m.get_mut(k) {
 		Some(data) => {
 			match data {
-				DataType::Integer(i) => {
-					*i += 1;
-					Ok(DataType::Integer(*i))
-				},
 				DataType::BulkString(s) => {
 					match s.parse::<i64>() {
 						Ok(i) => {
 							let x: i64 = i + 1;
-							m.insert(String::from(k), DataType::Integer(x));
+							m.insert(
+								String::from(k),
+								DataType::BulkString(x.to_string())
+							);
 							Ok(DataType::Integer(x))
 						},
 						Err(_) => Err("Target must be integer")
@@ -135,7 +133,7 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 			}
 		},
 		None => {
-			m.insert(String::from(k), DataType::Integer(1));
+			m.insert(String::from(k), DataType::bulkStr("1"));
 			Ok(DataType::Integer(1))
 		}
 	}
@@ -216,5 +214,65 @@ mod tests {
 		del("one");
 		del("two");
 		del("three");
+	}
+
+	#[test]
+	#[serial]
+	fn plan3() {
+		set("someint", "365");
+		assert_eq!(get("someint"), Some(DataType::bulkStr("365")));
+		assert_eq!(incr("someint"), Ok(DataType::Integer(366)));
+		assert_eq!(incr("someint"), Ok(DataType::Integer(367)));
+		assert_eq!(incr("someint"), Ok(DataType::Integer(368)));
+		assert_eq!(decr("someint"), Ok(DataType::Integer(367)));
+		assert_eq!(get("someint"), Some(DataType::bulkStr("367")));
+		del("someint");
+	}
+
+	#[test]
+	#[serial]
+	fn plan4() {
+		let _ = hset("fieldvalues", vec![
+			"field1".to_string(), "value1".to_string(),
+			"field2".to_string(), "value2".to_string()
+		]);
+		assert_eq!(
+			hget("fieldvalues", "field1"),
+			Ok(DataType::bulkStr("value1"))
+		);
+		assert_eq!(
+			hget("fieldvalues", "field2"),
+			Ok(DataType::bulkStr("value2"))
+		);
+		let _ = hset("fieldvalues", vec![
+			"field3".to_string(), "value3".to_string(),
+			"field4".to_string(), "value4".to_string(),
+			"field5".to_string(), "value5".to_string(),
+		]);
+		assert_eq!(
+			hget("fieldvalues", "field1"),
+			Ok(DataType::bulkStr("value1"))
+		);
+		assert_eq!(
+			hget("fieldvalues", "field4"),
+			Ok(DataType::bulkStr("value4"))
+		);
+		let _ = hset("fieldvalues", vec![
+			"field1".to_string(), "val1".to_string(),
+			"field2".to_string(), "val2".to_string()
+		]);
+		assert_eq!(
+			hget("fieldvalues", "field5"),
+			Ok(DataType::bulkStr("value5"))
+		);
+		assert_eq!(
+			hget("fieldvalues", "field1"),
+			Ok(DataType::bulkStr("val1"))
+		);
+		assert_eq!(
+			hget("fieldvalues", "field1"),
+			Ok(DataType::bulkStr("val1"))
+		);
+		del("fieldvalues");
 	}
 }
