@@ -27,9 +27,9 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 	},
 	"del" => Command {
 		function: cmd_del,
-		syntax: "del KEY",
-		validation: |r| {1 == r.parameters.len()},
-		doc: "remove the value associated with the KEY."
+		syntax: "del KEY [ KEY ... ]",
+		validation: |r| {0 < r.parameters.len()},
+		doc: "remove the value associated with the KEY(s)."
 	},
 	"get" => Command {
 		function: cmd_get,
@@ -60,6 +60,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		syntax: "hget KEY FIELD",
 		validation: |r| {1 <= r.parameters.len()},
 		doc: "get specified field from the hash stored at key"
+	},
+	"hgetall" => Command {
+		function: cmd_hgetall,
+		syntax: "hgetall KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "get all fields and values from the hash stored at key"
 	},
 	"hset" => Command {
 		function: cmd_hset,
@@ -166,26 +172,28 @@ fn handle_client(stream: TcpStream) {
 fn cmd_decr(req: &Request) -> DataType {
 	match kv::decr(req.parameters.iter().nth(0).unwrap().as_str()) {
 		Ok(v) => v,
-		Err(e) => DataType::bulkErr(&e.to_string())
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
 fn cmd_del(req: &Request) -> DataType {
-	kv::del(req.parameters.iter().nth(0).unwrap().as_str());
-	DataType::str("OK")
+	match kv::del(&req.parameters) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
 }
 
 fn cmd_get(req: &Request) -> DataType {
 	match kv::get(req.parameters.iter().nth(0).unwrap()) {
-		Some(v) => v,
-		None => DataType::Null
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
 fn cmd_hdel(req: &Request) -> DataType {
 	match kv::hdel(&req.parameters[0], req.parameters[1..].to_vec()) {
 		Ok(v) => v,
-		Err(e) => DataType::bulkErr(&e.to_string())
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
@@ -195,14 +203,21 @@ fn cmd_hget(req: &Request) -> DataType {
 		req.parameters.iter().nth(1).unwrap().as_str()
 	) {
 		Ok(v) => v,
-		Err(e) => DataType::bulkErr(&e.to_string())
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_hgetall(req: &Request) -> DataType {
+	match kv::hgetall(req.parameters.iter().nth(0).unwrap()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
 fn cmd_hset(req: &Request) -> DataType {
 	match kv::hset(&req.parameters[0], req.parameters[1..].to_vec()) {
 		Ok(v) => v,
-		Err(e) => DataType::bulkErr(&e.to_string())
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
@@ -238,14 +253,14 @@ fn cmd_help(req: &Request) -> DataType {
 fn cmd_keys(req: &Request) -> DataType {
 	match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
 		Ok(v) => v,
-		Err(e) => DataType::bulkErr(&e.to_string())
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
 fn cmd_incr(req: &Request) -> DataType {
 	match kv::incr(req.parameters.iter().nth(0).unwrap().as_str()) {
 		Ok(v) => v,
-		Err(e) => DataType::bulkErr(&e.to_string())
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 

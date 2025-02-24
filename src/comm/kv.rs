@@ -22,10 +22,15 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 							);
 							Ok(DataType::Integer(x))
 						},
-						Err(_) => Err("Target must be integer")
+						Err(_) => Err(
+							"ERR value is not an integer or out of range"
+						)
 					}
 				},
-				_ => Err("Target must be integer")
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
 			}
 		},
 		None => {
@@ -35,12 +40,30 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 	}
 }
 
-pub fn del(k: &str) -> Option<DataType> {
-	M.lock().unwrap().remove(k)
+pub fn del(ks: &Vec<String>) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	let cnt: i64 = ks.into_iter().map(|k| {
+		match m.remove(k) {
+			Some(_) => 1i64,
+			None => 0i64
+		}
+	}).sum::<i64>();
+	Ok(DataType::Integer(cnt))
 }
 
-pub fn get(k: &str) -> Option<DataType> {
-	M.lock().unwrap().get(k).cloned()
+pub fn get(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::BulkString(_s) => Ok(data.clone()),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
+	}
 }
 
 pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
@@ -56,11 +79,14 @@ pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 						}
 					}).sum::<i64>();
 					Ok(DataType::Integer(cnt))
-				}
-				_ => Err("Key must associate with a hash")
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
 			}
 		},
-		None => Err("Key must associate with a hash")
+		None => Ok(DataType::Integer(0))
 	}
 }
 
@@ -72,11 +98,29 @@ pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 				DataType::Hashset(h) => match h.get(&DataType::bulkStr(f)) {
 					Some(v) => Ok(v.clone()),
 					None => Ok(DataType::Null)
-				}
-				_ => Err("Key must associate with a hash")
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
 			}
 		},
-		None => Err("Key must associate with a hash")
+		None => Ok(DataType::Null)
+	}
+}
+
+pub fn hgetall(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(_hmap) => Ok(data.clone()),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
 	}
 }
 
@@ -126,10 +170,15 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 							);
 							Ok(DataType::Integer(x))
 						},
-						Err(_) => Err("Target must be integer")
+						Err(_) => Err(
+							"ERR value is not an integer or out of range"
+						)
 					}
 				},
-				_ => Err("Target must be integer")
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
 			}
 		},
 		None => {
@@ -170,29 +219,38 @@ mod tests {
 		set("first", "1st");
 		set("second", "2nd");
 		set("third", "3rd");
-		assert_eq!(get("first"), Some(DataType::bulkStr("1st")));
-		assert_eq!(get("second"), Some(DataType::bulkStr("2nd")));
-		assert_eq!(get("third"), Some(DataType::bulkStr("3rd")));
+		assert_eq!(get("first"), Ok(DataType::bulkStr("1st")));
+		assert_eq!(get("second"), Ok(DataType::bulkStr("2nd")));
+		assert_eq!(get("third"), Ok(DataType::bulkStr("3rd")));
 		assert_eq!(keys(".*"), Ok(DataType::List(vec![
 			DataType::bulkStr("first"),
 			DataType::bulkStr("second"),
 			DataType::bulkStr("third")
 		])));
 		assert_eq!(memsize(), 25usize);
-		del("first");
-		assert_eq!(get("first"), None);
-		assert_eq!(get("second"), Some(DataType::bulkStr("2nd")));
-		assert_eq!(get("third"), Some(DataType::bulkStr("3rd")));
+		assert_eq!(
+			del(&vec!["first".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+		assert_eq!(get("first"), Ok(DataType::Null));
+		assert_eq!(get("second"), Ok(DataType::bulkStr("2nd")));
+		assert_eq!(get("third"), Ok(DataType::bulkStr("3rd")));
 		assert_eq!(memsize(), 17usize);
-		del("second");
-		assert_eq!(get("first"), None);
-		assert_eq!(get("second"), None);
-		assert_eq!(get("third"), Some(DataType::bulkStr("3rd")));
+		assert_eq!(
+			del(&vec!["second".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+		assert_eq!(get("first"), Ok(DataType::Null));
+		assert_eq!(get("second"), Ok(DataType::Null));
+		assert_eq!(get("third"), Ok(DataType::bulkStr("3rd")));
 		assert_eq!(memsize(), 8usize);
-		del("third");
-		assert_eq!(get("first"), None);
-		assert_eq!(get("second"), None);
-		assert_eq!(get("third"), None);
+		assert_eq!(
+			del(&vec!["third".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+		assert_eq!(get("first"), Ok(DataType::Null));
+		assert_eq!(get("second"), Ok(DataType::Null));
+		assert_eq!(get("third"), Ok(DataType::Null));
 		assert_eq!(memsize(), 0usize);
 	}
 
@@ -202,31 +260,39 @@ mod tests {
 		set("one", "un");
 		set("two", "deux");
 		set("three", "trois");
-		assert_eq!(get("one"), Some(DataType::bulkStr("un")));
-		assert_eq!(get("two"), Some(DataType::bulkStr("deux")));
-		assert_eq!(get("three"), Some(DataType::bulkStr("trois")));
+		assert_eq!(get("one"), Ok(DataType::bulkStr("un")));
+		assert_eq!(get("two"), Ok(DataType::bulkStr("deux")));
+		assert_eq!(get("three"), Ok(DataType::bulkStr("trois")));
 		assert_eq!(keys(".*"), Ok(DataType::List(vec![
 			DataType::bulkStr("one"),
 			DataType::bulkStr("three"),
 			DataType::bulkStr("two")
 		])));
 		assert_eq!(memsize(), 22usize);
-		del("one");
-		del("two");
-		del("three");
+		assert_eq!(
+			del(&vec![
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string()
+			]),
+			Ok(DataType::Integer(3))
+		);
 	}
 
 	#[test]
 	#[serial]
 	fn plan3() {
 		set("someint", "365");
-		assert_eq!(get("someint"), Some(DataType::bulkStr("365")));
+		assert_eq!(get("someint"), Ok(DataType::bulkStr("365")));
 		assert_eq!(incr("someint"), Ok(DataType::Integer(366)));
 		assert_eq!(incr("someint"), Ok(DataType::Integer(367)));
 		assert_eq!(incr("someint"), Ok(DataType::Integer(368)));
 		assert_eq!(decr("someint"), Ok(DataType::Integer(367)));
-		assert_eq!(get("someint"), Some(DataType::bulkStr("367")));
-		del("someint");
+		assert_eq!(get("someint"), Ok(DataType::bulkStr("367")));
+		assert_eq!(
+			del(&vec!["someint".to_string()]),
+			Ok(DataType::Integer(1))
+		);
 	}
 
 	#[test]
@@ -273,6 +339,9 @@ mod tests {
 			hget("fieldvalues", "field1"),
 			Ok(DataType::bulkStr("val1"))
 		);
-		del("fieldvalues");
+		assert_eq!(
+			del(&vec!["fieldvalues".to_string()]),
+			Ok(DataType::Integer(1))
+		);
 	}
 }
