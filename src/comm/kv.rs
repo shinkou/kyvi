@@ -207,6 +207,23 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 	}
 }
 
+pub fn hlen(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(hmap) =>
+					Ok(DataType::Integer(hmap.len().try_into().unwrap())),
+				_ =>
+					Err(
+						"WRONGTYPE Operation against a key holding the \
+						wrong kind of value"
+					)
+			}
+		},
+		None => Ok(DataType::Integer(0i64))
+	}
+}
+
 pub fn hset<'a>(k: &'a str, nvs: &'a Vec<String>)
 	-> Result<DataType, &'a str> {
 	if 0 != nvs.len() % 2 {
@@ -520,6 +537,7 @@ mod tests {
 			hget("fieldvalues", "field1"),
 			Ok(DataType::bulkStr("val1"))
 		);
+		assert_eq!(hlen("fieldvalues"), Ok(DataType::Integer(5)));
 		assert_eq!(
 			del(&vec!["fieldvalues".to_string()]),
 			Ok(DataType::Integer(1))
