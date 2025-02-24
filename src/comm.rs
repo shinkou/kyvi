@@ -25,6 +25,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "decrement the integer value associated with the KEY."
 	},
+	"decrby" => Command {
+		function: cmd_decrby,
+		syntax: "decrby KEY VALUE",
+		validation: |r| {2 == r.parameters.len()},
+		doc: "decrement value stored at the KEY by the integer provided."
+	},
 	"del" => Command {
 		function: cmd_del,
 		syntax: "del KEY [ KEY ... ]",
@@ -183,6 +189,16 @@ fn handle_client(stream: TcpStream) {
 
 fn cmd_decr(req: &Request) -> DataType {
 	match kv::decr(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_decrby(req: &Request) -> DataType {
+	match kv::decrby(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str()
+	) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
 	}
