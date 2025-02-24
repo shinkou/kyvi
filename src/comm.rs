@@ -123,6 +123,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 < r.parameters.len()},
 		doc: "obtain values stored at specified keys."
 	},
+	"mset" => Command {
+		function: cmd_mset,
+		syntax: "mset KEY VALUE [ KEY VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "store values with the specified keys."
+	},
 	"quit" => Command {
 		function: cmd_quit,
 		syntax: "quit",
@@ -380,14 +386,23 @@ fn cmd_mget(req: &Request) -> DataType {
 	}
 }
 
+fn cmd_mset(req: &Request) -> DataType {
+	match kv::mset(&req.parameters) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
 fn cmd_quit(_req: &Request) -> DataType {
 	DataType::str("OK")
 }
 
 fn cmd_set(req: &Request) -> DataType {
-	let _oldv = kv::set(
+	match kv::set(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
-	);
-	DataType::str("OK")
+	) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
 }

@@ -46,7 +46,7 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 							Ok(DataType::Integer(x))
 						},
 						Err(_) => Err(
-							"ERR value is not an integer or out of range"
+							"ERR Value is not an integer or out of range"
 						)
 					}
 				},
@@ -66,7 +66,7 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let mut m = M.lock().unwrap();
 	if let Err(_) = v.parse::<i64>() {
-		return Err("ERR increment by value is not an integer")
+		return Err("ERR Increment by value is not an integer")
 	}
 	let n: i64 = v.parse::<i64>().unwrap();
 	match m.get(k) {
@@ -83,7 +83,7 @@ pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 							Ok(DataType::Integer(x))
 						},
 						Err(_) => Err(
-							"ERR value is not an integer or out of range"
+							"ERR Value is not an integer or out of range"
 						)
 					}
 				},
@@ -210,7 +210,7 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 pub fn hset<'a>(k: &'a str, nvs: &'a Vec<String>)
 	-> Result<DataType, &'a str> {
 	if 0 != nvs.len() % 2 {
-		return Err("Number of elements must a multiple of 2");
+		return Err("ERR Number of elements must a multiple of 2");
 	}
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
@@ -223,7 +223,7 @@ pub fn hset<'a>(k: &'a str, nvs: &'a Vec<String>)
 					);});
 					Ok(DataType::Integer(hmap.len().try_into().unwrap()))
 				},
-				_ => Err("Key must associate with a hash")
+				_ => Err("ERR Key must associate with a hash")
 			}
 		},
 		None => {
@@ -255,7 +255,7 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 							Ok(DataType::Integer(x))
 						},
 						Err(_) => Err(
-							"ERR value is not an integer or out of range"
+							"ERR Value is not an integer or out of range"
 						)
 					}
 				},
@@ -275,7 +275,7 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let mut m = M.lock().unwrap();
 	if let Err(_) = v.parse::<i64>() {
-		return Err("ERR increment by value is not an integer")
+		return Err("ERR Increment by value is not an integer")
 	}
 	let n: i64 = v.parse::<i64>().unwrap();
 	match m.get(k) {
@@ -292,7 +292,7 @@ pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 							Ok(DataType::Integer(x))
 						},
 						Err(_) => Err(
-							"ERR value is not an integer or out of range"
+							"ERR Value is not an integer or out of range"
 						)
 					}
 				},
@@ -343,8 +343,20 @@ pub fn mget(ks: &Vec<String>) -> Result<DataType, &str> {
 	))
 }
 
-pub fn set(k: &str, v: &str) -> Option<DataType> {
-	M.lock().unwrap().insert(String::from(k), DataType::bulkStr(v))
+pub fn mset(nvs: &Vec<String>) -> Result<DataType, &str> {
+	if 0 != nvs.len() % 2 {
+		return Err("ERR Number of elements must a multiple of 2");
+	}
+	let mut m = M.lock().unwrap();
+	nvs.chunks(2).for_each(|x| {
+		m.insert(x[0].clone(), DataType::bulkStr(&x[1]));
+	});
+	Ok(DataType::str("OK"))
+}
+
+pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
+	let _ = M.lock().unwrap().insert(String::from(k), DataType::bulkStr(v));
+	Ok(DataType::str("OK"))
 }
 
 #[cfg(test)]
@@ -355,9 +367,9 @@ mod tests {
 	#[test]
 	#[serial]
 	fn plan1() {
-		set("first", "1st");
-		set("second", "2nd");
-		set("third", "3rd");
+		let _ = set("first", "1st");
+		let _ = set("second", "2nd");
+		let _ = set("third", "3rd");
 		assert_eq!(get("first"), Ok(DataType::bulkStr("1st")));
 		assert_eq!(get("second"), Ok(DataType::bulkStr("2nd")));
 		assert_eq!(get("third"), Ok(DataType::bulkStr("3rd")));
@@ -396,9 +408,9 @@ mod tests {
 	#[test]
 	#[serial]
 	fn plan2() {
-		set("one", "un");
-		set("two", "deux");
-		set("three", "trois");
+		let _ = set("one", "un");
+		let _ = set("two", "deux");
+		let _ = set("three", "trois");
 		assert_eq!(get("one"), Ok(DataType::bulkStr("un")));
 		assert_eq!(get("two"), Ok(DataType::bulkStr("deux")));
 		assert_eq!(get("three"), Ok(DataType::bulkStr("trois")));
@@ -441,7 +453,7 @@ mod tests {
 	#[test]
 	#[serial]
 	fn plan4() {
-		set("someint", "365");
+		let _ = set("someint", "365");
 		assert_eq!(get("someint"), Ok(DataType::bulkStr("365")));
 		assert_eq!(incr("someint"), Ok(DataType::Integer(366)));
 		assert_eq!(incr("someint"), Ok(DataType::Integer(367)));
