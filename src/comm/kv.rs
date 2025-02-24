@@ -248,6 +248,44 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 	}
 }
 
+pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
+	let mut m = M.lock().unwrap();
+	if let Err(_) = v.parse::<i64>() {
+		return Err("ERR increment by value is not an integer")
+	}
+	let n: i64 = v.parse::<i64>().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::BulkString(s) => {
+					match s.parse::<i64>() {
+						Ok(i) => {
+							let x: i64 = i + n;
+							m.insert(
+								String::from(k),
+								DataType::BulkString(x.to_string())
+							);
+							Ok(DataType::Integer(x))
+						},
+						Err(_) => Err(
+							"ERR value is not an integer or out of range"
+						)
+					}
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => {
+			let x: i64 = 0 + n;
+			m.insert(String::from(k), DataType::BulkString(x.to_string()));
+			Ok(DataType::Integer(x))
+		}
+	}
+}
+
 pub fn keys(p: &str) -> Result<DataType, Error> {
 	let re = Regex::new(p)?;
 	Ok(
@@ -349,15 +387,19 @@ mod tests {
 		assert_eq!(incr("someint"), Ok(DataType::Integer(368)));
 		assert_eq!(decr("someint"), Ok(DataType::Integer(367)));
 		assert_eq!(decrby("someint", "5"), Ok(DataType::Integer(362)));
-		assert_eq!(get("someint"), Ok(DataType::bulkStr("362")));
+		assert_eq!(incrby("someint", "9"), Ok(DataType::Integer(371)));
+		assert_eq!(get("someint"), Ok(DataType::bulkStr("371")));
 		assert_eq!(decrby("newint", "4"), Ok(DataType::Integer(-4)));
 		assert_eq!(get("newint"), Ok(DataType::bulkStr("-4")));
+		assert_eq!(incrby("yetint", "4"), Ok(DataType::Integer(4)));
+		assert_eq!(get("yetint"), Ok(DataType::bulkStr("4")));
 		assert_eq!(
 			del(&vec![
 				"someint".to_string(),
-				"newint".to_string()
+				"newint".to_string(),
+				"yetint".to_string()
 			]),
-			Ok(DataType::Integer(2))
+			Ok(DataType::Integer(3))
 		);
 	}
 

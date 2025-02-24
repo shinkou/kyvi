@@ -55,12 +55,6 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {2 == r.parameters.len()},
 		doc: "obtain the value of the key and set it to a new value"
 	},
-	"incr" => Command {
-		function: cmd_incr,
-		syntax: "incr KEY",
-		validation: |r| {1 == r.parameters.len()},
-		doc: "increment the integer value associated with the KEY."
-	},
 	"help" => Command {
 		function: cmd_help,
 		syntax: "help [ COMMAND ]",
@@ -92,6 +86,18 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 			2 < r.parameters.len() && 1 == r.parameters.len() % 2
 		},
 		doc: "set specified fields to values in the hash stored at key"
+	},
+	"incr" => Command {
+		function: cmd_incr,
+		syntax: "incr KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "increment the integer value associated with the KEY."
+	},
+	"incrby" => Command {
+		function: cmd_incrby,
+		syntax: "incrby KEY VALUE",
+		validation: |r| {2 == r.parameters.len()},
+		doc: "increment value stored at the KEY by the integer provided."
 	},
 	"info" => Command {
 		function: cmd_info,
@@ -304,6 +310,16 @@ fn cmd_keys(req: &Request) -> DataType {
 
 fn cmd_incr(req: &Request) -> DataType {
 	match kv::incr(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_incrby(req: &Request) -> DataType {
+	match kv::incrby(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str()
+	) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
 	}
