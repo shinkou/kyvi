@@ -117,6 +117,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "list keys matching the REGEX pattern."
 	},
+	"mget" => Command {
+		function: cmd_mget,
+		syntax: "mget KEY [ KEY ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "obtain values stored at specified keys."
+	},
 	"quit" => Command {
 		function: cmd_quit,
 		syntax: "quit",
@@ -282,7 +288,7 @@ fn cmd_hgetall(req: &Request) -> DataType {
 }
 
 fn cmd_hset(req: &Request) -> DataType {
-	match kv::hset(&req.parameters[0], req.parameters[1..].to_vec()) {
+	match kv::hset(&req.parameters[0], &req.parameters[1..].to_vec()) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
 	}
@@ -365,6 +371,13 @@ fn cmd_info(_req: &Request) -> DataType {
 		None => format!("Data size: {}B", memsize)
 	};
 	DataType::str(&ss)
+}
+
+fn cmd_mget(req: &Request) -> DataType {
+	match kv::mget(&req.parameters) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
 }
 
 fn cmd_quit(_req: &Request) -> DataType {

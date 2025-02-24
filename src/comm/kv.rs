@@ -207,7 +207,8 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 	}
 }
 
-pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
+pub fn hset<'a>(k: &'a str, nvs: &'a Vec<String>)
+	-> Result<DataType, &'a str> {
 	if 0 != nvs.len() % 2 {
 		return Err("Number of elements must a multiple of 2");
 	}
@@ -323,6 +324,23 @@ pub fn keys(p: &str) -> Result<DataType, Error> {
 
 pub fn memsize() -> usize {
 	M.lock().unwrap().iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
+}
+
+pub fn mget(ks: &Vec<String>) -> Result<DataType, &str> {
+	let m = M.lock().unwrap();
+	Ok(DataType::List(
+		ks.into_iter().map(|k| {
+			match m.get(k) {
+				Some(data) => {
+					match data {
+						DataType::BulkString(_s) => data.clone(),
+						_ => DataType::Null
+					}
+				},
+				None => DataType::Null
+			}
+		}).collect::<Vec<_>>().to_vec()
+	))
 }
 
 pub fn set(k: &str, v: &str) -> Option<DataType> {
@@ -449,7 +467,7 @@ mod tests {
 	#[test]
 	#[serial]
 	fn plan5() {
-		let _ = hset("fieldvalues", vec![
+		let _ = hset("fieldvalues", &vec![
 			"field1".to_string(), "value1".to_string(),
 			"field2".to_string(), "value2".to_string()
 		]);
@@ -461,7 +479,7 @@ mod tests {
 			hget("fieldvalues", "field2"),
 			Ok(DataType::bulkStr("value2"))
 		);
-		let _ = hset("fieldvalues", vec![
+		let _ = hset("fieldvalues", &vec![
 			"field3".to_string(), "value3".to_string(),
 			"field4".to_string(), "value4".to_string(),
 			"field5".to_string(), "value5".to_string(),
@@ -474,7 +492,7 @@ mod tests {
 			hget("fieldvalues", "field4"),
 			Ok(DataType::bulkStr("value4"))
 		);
-		let _ = hset("fieldvalues", vec![
+		let _ = hset("fieldvalues", &vec![
 			"field1".to_string(), "val1".to_string(),
 			"field2".to_string(), "val2".to_string()
 		]);
