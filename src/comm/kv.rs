@@ -7,6 +7,29 @@ use super::datatype::DataType;
 
 static M: Mutex<BTreeMap<String, DataType>>= Mutex::new(BTreeMap::new());
 
+pub fn append<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
+	let mut m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::BulkString(s) => {
+					let a = s.to_string() + v;
+					m.insert(String::from(k), DataType::bulkStr(&a));
+					Ok(DataType::Integer(a.len().try_into().unwrap()))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => {
+			m.insert(String::from(k), DataType::bulkStr(v));
+			Ok(DataType::Integer(v.len().try_into().unwrap()))
+		}
+	}
+}
+
 pub fn decr(k: &str) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
 	match m.get(k) {
@@ -111,7 +134,7 @@ pub fn getdel(k: &str) -> Result<DataType, &str> {
 			let _ = del(&vec![k.to_string()]);
 			resdata
 		},
-		Err(e) => resdata
+		Err(_e) => resdata
 	}
 }
 
@@ -122,7 +145,7 @@ pub fn getset<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 			let _ = set(k, v);
 			resdata
 		},
-		Err(e) => resdata
+		Err(_e) => resdata
 	}
 }
 
@@ -380,6 +403,26 @@ mod tests {
 	#[test]
 	#[serial]
 	fn plan3() {
+		assert_eq!(get("somestr"), Ok(DataType::Null));
+		assert_eq!(append("somestr", "rust"), Ok(DataType::Integer(4)));
+		assert_eq!(append("somestr", " is"), Ok(DataType::Integer(7)));
+		assert_eq!(
+			append("somestr", " awesome"),
+			Ok(DataType::Integer(15))
+		);
+		assert_eq!(
+			get("somestr"),
+			Ok(DataType::bulkStr("rust is awesome"))
+		);
+		assert_eq!(
+			del(&vec!["somestr".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+	}
+
+	#[test]
+	#[serial]
+	fn plan4() {
 		set("someint", "365");
 		assert_eq!(get("someint"), Ok(DataType::bulkStr("365")));
 		assert_eq!(incr("someint"), Ok(DataType::Integer(366)));
@@ -405,7 +448,7 @@ mod tests {
 
 	#[test]
 	#[serial]
-	fn plan4() {
+	fn plan5() {
 		let _ = hset("fieldvalues", vec![
 			"field1".to_string(), "value1".to_string(),
 			"field2".to_string(), "value2".to_string()

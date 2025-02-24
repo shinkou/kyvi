@@ -19,29 +19,35 @@ struct Command<'a> {
 }
 
 static CMDS: phf::Map<&str, Command> = phf_map! {
+	"append" => Command {
+		function: cmd_append,
+		syntax: "append KEY VALUE",
+		validation: |r| {2 == r.parameters.len()},
+		doc: "append value to the string stored at the key."
+	},
 	"decr" => Command {
 		function: cmd_decr,
 		syntax: "decr KEY",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "decrement the integer value associated with the KEY."
+		doc: "decrement the integer value associated with the key."
 	},
 	"decrby" => Command {
 		function: cmd_decrby,
 		syntax: "decrby KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "decrement value stored at the KEY by the integer provided."
+		doc: "decrement value stored at the key by the integer provided."
 	},
 	"del" => Command {
 		function: cmd_del,
 		syntax: "del KEY [ KEY ... ]",
 		validation: |r| {0 < r.parameters.len()},
-		doc: "remove the value associated with the KEY(s)."
+		doc: "remove the value associated with the key(s)."
 	},
 	"get" => Command {
 		function: cmd_get,
 		syntax: "get KEY",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "obtain value associated with the KEY."
+		doc: "obtain value associated with the key."
 	},
 	"getdel" => Command {
 		function: cmd_getdel,
@@ -59,7 +65,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_help,
 		syntax: "help [ COMMAND ]",
 		validation: |r| {2 > r.parameters.len()},
-		doc: "list commands, or show details of the given COMMAND."
+		doc: "list commands, or show details of the given command."
 	},
 	"hdel" => Command {
 		function: cmd_hdel,
@@ -91,13 +97,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_incr,
 		syntax: "incr KEY",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "increment the integer value associated with the KEY."
+		doc: "increment the integer value associated with the key."
 	},
 	"incrby" => Command {
 		function: cmd_incrby,
 		syntax: "incrby KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "increment value stored at the KEY by the integer provided."
+		doc: "increment value stored at the key by the integer provided."
 	},
 	"info" => Command {
 		function: cmd_info,
@@ -121,7 +127,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_set,
 		syntax: "set KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "record the given KEY VALUE pair."
+		doc: "record the given key value pair."
 	}
 };
 
@@ -190,6 +196,16 @@ fn handle_client(stream: TcpStream) {
 					return;
 				}
 		}
+	}
+}
+
+fn cmd_append(req: &Request) -> DataType {
+	match kv::append(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str()
+	) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
