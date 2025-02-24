@@ -66,6 +66,17 @@ pub fn get(k: &str) -> Result<DataType, &str> {
 	}
 }
 
+pub fn getdel(k: &str) -> Result<DataType, &str> {
+	let resdata = get(k);
+	match resdata {
+		Ok(ref _data) => {
+			let _ = del(&vec![k.to_string()]);
+			resdata
+		},
+		Err(e) => resdata
+	}
+}
+
 pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
