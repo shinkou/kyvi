@@ -77,6 +77,17 @@ pub fn getdel(k: &str) -> Result<DataType, &str> {
 	}
 }
 
+pub fn getset<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
+	let resdata = get(k);
+	match resdata {
+		Ok(ref _data) => {
+			let _ = set(k, v);
+			resdata
+		},
+		Err(e) => resdata
+	}
+}
+
 pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {

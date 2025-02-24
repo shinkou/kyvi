@@ -43,6 +43,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "obtain the value of the key and delete it."
 	},
+	"getset" => Command {
+		function: cmd_getset,
+		syntax: "getset KEY VALUE",
+		validation: |r| {2 == r.parameters.len()},
+		doc: "obtain the value of the key and set it to a new value"
+	},
 	"incr" => Command {
 		function: cmd_incr,
 		syntax: "incr KEY",
@@ -198,6 +204,16 @@ fn cmd_get(req: &Request) -> DataType {
 
 fn cmd_getdel(req: &Request) -> DataType {
 	match kv::getdel(req.parameters.iter().nth(0).unwrap()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_getset(req: &Request) -> DataType {
+	match kv::getset(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str()
+	) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
 	}
