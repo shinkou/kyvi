@@ -173,6 +173,29 @@ pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	}
 }
 
+pub fn hexists<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(hmap) => {
+					Ok(DataType::Integer(
+						if hmap.contains_key(&DataType::bulkStr(f)) {
+							1i64
+						} else {
+							0i64
+						}
+					))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Integer(0i64))
+	}
+}
+
 pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 	let m = M.lock().unwrap();
 	match m.get(k) {
@@ -536,6 +559,18 @@ mod tests {
 		assert_eq!(
 			hget("fieldvalues", "field1"),
 			Ok(DataType::bulkStr("val1"))
+		);
+		assert_eq!(
+			hexists("fieldvalues", "field5"),
+			Ok(DataType::Integer(1i64))
+		);
+		assert_eq!(
+			hexists("fieldvalues", "nonexists"),
+			Ok(DataType::Integer(0i64))
+		);
+		assert_eq!(
+			hexists("nosuchhash", "field1"),
+			Ok(DataType::Integer(0i64))
 		);
 		assert_eq!(hlen("fieldvalues"), Ok(DataType::Integer(5)));
 		assert_eq!(

@@ -73,6 +73,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 < r.parameters.len()},
 		doc: "remove specified fields existed in the hash stored at key"
 	},
+	"hexists" => Command {
+		function: cmd_hexists,
+		syntax: "hexists KEY FIELD",
+		validation: |r| {2 == r.parameters.len()},
+		doc: "return 1 if field exists, 0 if not, in the hash stored at key"
+	},
 	"hget" => Command {
 		function: cmd_hget,
 		syntax: "hget KEY FIELD",
@@ -277,6 +283,16 @@ fn cmd_getset(req: &Request) -> DataType {
 
 fn cmd_hdel(req: &Request) -> DataType {
 	match kv::hdel(&req.parameters[0], req.parameters[1..].to_vec()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_hexists(req: &Request) -> DataType {
+	match kv::hexists(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str()
+	) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
 	}
