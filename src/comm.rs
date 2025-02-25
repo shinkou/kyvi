@@ -117,6 +117,14 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "get values associated with the fields in the hash stored at \
 			key"
 	},
+	"hmset" => Command {
+		function: cmd_hset,
+		syntax: "hmset KEY FIELD VALUE [ FIELD VALUE ... ]",
+		validation: |r| {
+			2 < r.parameters.len() && 1 == r.parameters.len() % 2
+		},
+		doc: "set specified fields to values in the hash stored at key"
+	},
 	"hset" => Command {
 		function: cmd_hset,
 		syntax: "hset KEY FIELD VALUE [ FIELD VALUE ... ]",
