@@ -111,6 +111,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		},
 		doc: "set specified fields to values in the hash stored at key"
 	},
+	"hvals" => Command {
+		function: cmd_hvals,
+		syntax: "hvals KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "get all field values in the hash stored at key"
+	},
 	"incr" => Command {
 		function: cmd_incr,
 		syntax: "incr KEY",
@@ -294,6 +300,35 @@ fn cmd_hdel(req: &Request) -> DataType {
 	}
 }
 
+fn cmd_help(req: &Request) -> DataType {
+	if 1 == req.parameters.len() {
+		let prm = req.parameters.iter().nth(0).unwrap().as_str();
+		match CMDS.get(prm) {
+			Some(cmd) => DataType::bulkStr(&format!(
+					"Syntax:\n\t{}\n\nDescription:\n\t{}\n",
+					cmd.syntax,
+					cmd.doc
+				)),
+			None => DataType::err(&format!(
+					"ERR unknown command \"{}\"",
+					prm
+				))
+		}
+	} else {
+		let mut ctx = String::new();
+		ctx.push_str("Available commands:\n");
+		let mut cnt = 0;
+		for cmd in CMDS.keys() {
+			cnt += 1;
+			ctx.push_str(&format!("{}) \"{}\"\n", cnt, cmd));
+		}
+		ctx.push_str(
+			"\nUse \"help COMMAND\" for details of each COMMAND."
+		);
+		DataType::bulkStr(&ctx)
+	}
+}
+
 fn cmd_hexists(req: &Request) -> DataType {
 	match kv::hexists(
 		req.parameters.iter().nth(0).unwrap().as_str(),
@@ -342,32 +377,10 @@ fn cmd_hset(req: &Request) -> DataType {
 	}
 }
 
-fn cmd_help(req: &Request) -> DataType {
-	if 1 == req.parameters.len() {
-		let prm = req.parameters.iter().nth(0).unwrap().as_str();
-		match CMDS.get(prm) {
-			Some(cmd) => DataType::bulkStr(&format!(
-					"Syntax:\n\t{}\n\nDescription:\n\t{}\n",
-					cmd.syntax,
-					cmd.doc
-				)),
-			None => DataType::err(&format!(
-					"ERR unknown command \"{}\"",
-					prm
-				))
-		}
-	} else {
-		let mut ctx = String::new();
-		ctx.push_str("Available commands:\n");
-		let mut cnt = 0;
-		for cmd in CMDS.keys() {
-			cnt += 1;
-			ctx.push_str(&format!("{}) \"{}\"\n", cnt, cmd));
-		}
-		ctx.push_str(
-			"\nUse \"help COMMAND\" for details of each COMMAND."
-		);
-		DataType::bulkStr(&ctx)
+fn cmd_hvals(req: &Request) -> DataType {
+	match kv::hvals(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 

@@ -297,6 +297,24 @@ pub fn hset<'a>(k: &'a str, nvs: &'a Vec<String>)
 	}
 }
 
+pub fn hvals(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(hmap) =>
+					Ok(DataType::List(
+						hmap.values().cloned().collect::<Vec<_>>()
+					)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::List(vec![]))
+	}
+}
+
 pub fn incr(k: &str) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
@@ -591,8 +609,8 @@ mod tests {
 			Ok(DataType::Integer(0i64))
 		);
 		assert_eq!(hlen("fieldvalues"), Ok(DataType::Integer(5)));
-		if let Ok(DataType::List(somevec)) = hkeys("fieldvalues") {
-			let mut fields = somevec.into_iter().map(|e| {
+		if let Ok(DataType::List(somekeys)) = hkeys("fieldvalues") {
+			let mut fields = somekeys.into_iter().map(|e| {
 				match e {
 					DataType::BulkString(s) => s,
 					_ => "".to_string()
@@ -602,6 +620,23 @@ mod tests {
 			assert_eq!(
 				fields,
 				vec!["field1", "field2", "field3", "field4", "field5"]
+			);
+		}
+		let _ = hset("fieldvalues", &vec![
+			"field1".to_string(), "value1".to_string(),
+			"field2".to_string(), "value2".to_string()
+		]);
+		if let Ok(DataType::List(somevals)) = hvals("fieldvalues") {
+			let mut fields = somevals.into_iter().map(|e| {
+				match e {
+					DataType::BulkString(s) => s,
+					_ => "".to_string()
+				}
+			}).collect::<Vec<_>>();
+			fields.sort();
+			assert_eq!(
+				fields,
+				vec!["value1", "value2", "value3", "value4", "value5"]
 			);
 		}
 		assert_eq!(
