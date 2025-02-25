@@ -238,8 +238,8 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: i64)
 			match data {
 				DataType::Hashset(hmap) => {
 					match hmap.get(&DataType::bulkStr(f)) {
-						Some(DataType::BulkString(blkstr)) => {
-							match blkstr.parse::<i64>() {
+						Some(DataType::BulkString(somestr)) => {
+							match somestr.parse::<i64>() {
 								Ok(i) => {
 									let x: i64 = i + n;
 									hmap.insert(
@@ -316,6 +316,31 @@ pub fn hlen(k: &str) -> Result<DataType, &str> {
 			}
 		},
 		None => Ok(DataType::Integer(0i64))
+	}
+}
+
+pub fn hmget<'a>(k: &'a str, fs: &'a Vec<String>)
+	-> Result<DataType, &'a str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(hmap) => Ok(DataType::List(
+					fs.into_iter().map(|f| {
+						match hmap.get(&DataType::bulkStr(f)) {
+							Some(somedtype) => somedtype.clone(),
+							None => DataType::Null
+						}
+					}).collect::<Vec<_>>()
+				)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::List(
+			fs.into_iter().map(|_| {DataType::Null}).collect::<Vec<_>>()
+		))
 	}
 }
 
@@ -693,6 +718,42 @@ mod tests {
 				vec!["value1", "value2", "value3", "value4", "value5"]
 			);
 		}
+		assert_eq!(
+			hmget("fieldvalues", &vec![
+				"field1".to_string(),
+				"field3".to_string(),
+				"field5".to_string()
+			]),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("value1"),
+				DataType::bulkStr("value3"),
+				DataType::bulkStr("value5")
+			]))
+		);
+		assert_eq!(
+			hmget("fieldvalues", &vec![
+				"field0".to_string(),
+				"field2".to_string(),
+				"field4".to_string()
+			]),
+			Ok(DataType::List(vec![
+				DataType::Null,
+				DataType::bulkStr("value2"),
+				DataType::bulkStr("value4")
+			]))
+		);
+		assert_eq!(
+			hmget("nonexist", &vec![
+				"field1".to_string(),
+				"field2".to_string(),
+				"field3".to_string()
+			]),
+			Ok(DataType::List(vec![
+				DataType::Null,
+				DataType::Null,
+				DataType::Null
+			]))
+		);
 		assert_eq!(
 			del(&vec!["fieldvalues".to_string()]),
 			Ok(DataType::Integer(1))
