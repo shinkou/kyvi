@@ -230,6 +230,24 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 	}
 }
 
+pub fn hkeys(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(hmap) =>
+					Ok(DataType::List(
+						hmap.keys().cloned().collect::<Vec<_>>()
+					)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::List(vec![]))
+	}
+}
+
 pub fn hlen(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
@@ -573,6 +591,19 @@ mod tests {
 			Ok(DataType::Integer(0i64))
 		);
 		assert_eq!(hlen("fieldvalues"), Ok(DataType::Integer(5)));
+		if let Ok(DataType::List(somevec)) = hkeys("fieldvalues") {
+			let mut fields = somevec.into_iter().map(|e| {
+				match e {
+					DataType::BulkString(s) => s,
+					_ => "".to_string()
+				}
+			}).collect::<Vec<_>>();
+			fields.sort();
+			assert_eq!(
+				fields,
+				vec!["field1", "field2", "field3", "field4", "field5"]
+			);
+		}
 		assert_eq!(
 			del(&vec!["fieldvalues".to_string()]),
 			Ok(DataType::Integer(1))
