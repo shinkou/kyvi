@@ -91,6 +91,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "get all fields and values from the hash stored at key"
 	},
+	"hincrby" => Command {
+		function: cmd_hincrby,
+		syntax: "hincrby KEY FIELD INCR",
+		validation: |r| {3 == r.parameters.len()},
+		doc: "increment the numerical value of the field in the hash \
+			stored at key by increment"
+	},
 	"hkeys" => Command {
 		function: cmd_hkeys,
 		syntax: "hkeys KEY",
@@ -353,6 +360,22 @@ fn cmd_hgetall(req: &Request) -> DataType {
 	match kv::hgetall(req.parameters.iter().nth(0).unwrap()) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_hincrby(req: &Request) -> DataType {
+	match req.parameters.iter().nth(2).unwrap().parse::<i64>() {
+		Ok(i) => {
+			match kv::hincrby(
+				req.parameters.iter().nth(0).unwrap().as_str(),
+				req.parameters.iter().nth(1).unwrap().as_str(),
+				i
+			) {
+				Ok(v) => v,
+				Err(e) => DataType::err(&e.to_string())
+			}
+		},
+		Err(_) => DataType::err("ERR Increment is not a number")
 	}
 }
 

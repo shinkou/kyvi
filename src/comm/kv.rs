@@ -230,6 +230,60 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 	}
 }
 
+pub fn hincrby<'a>(k: &'a str, f: &'a str, n: i64)
+	-> Result<DataType, &'a str> {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::Hashset(hmap) => {
+					match hmap.get(&DataType::bulkStr(f)) {
+						Some(DataType::BulkString(blkstr)) => {
+							match blkstr.parse::<i64>() {
+								Ok(i) => {
+									let x: i64 = i + n;
+									hmap.insert(
+										DataType::bulkStr(f),
+										DataType::BulkString(x.to_string())
+									);
+									Ok(DataType::Integer(x))
+								},
+								Err(_) => Err(
+									"ERR Value is not an integer or out of \
+									range"
+								)
+							}
+						},
+						None => {
+							hmap.insert(
+								DataType::bulkStr(f),
+								DataType::BulkString(n.to_string())
+							);
+							Ok(DataType::Integer(n))
+						},
+						_ => todo!() // this should never happen since we 
+									 // only use DataType::BulkString for
+									 // keys
+					}
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => {
+			let mut somehmap: HashMap<DataType, DataType> = HashMap::new();
+			somehmap.insert(
+				DataType::bulkStr(f),
+				DataType::BulkString(n.to_string())
+			);
+			m.insert(String::from(k), DataType::hset(&somehmap));
+			Ok(DataType::Integer(n))
+		}
+	}
+}
+
 pub fn hkeys(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
@@ -642,6 +696,26 @@ mod tests {
 		assert_eq!(
 			del(&vec!["fieldvalues".to_string()]),
 			Ok(DataType::Integer(1))
+		);
+	}
+
+	#[test]
+	#[serial]
+	fn plan6() {
+		assert_eq!(
+			hset("fieldvalues", &vec![
+				"field1".to_string(), "128".to_string(),
+				"field2".to_string(), "non-numeric".to_string()
+			]),
+			Ok(DataType::Integer(2))
+		);
+		assert_eq!(
+			hincrby("fieldvalues", "field1", 128),
+			Ok(DataType::Integer(256))
+		);
+		assert_eq!(
+			hincrby("fieldvalues", "field2", 64),
+			Err("ERR Value is not an integer or out of range")
 		);
 	}
 }
