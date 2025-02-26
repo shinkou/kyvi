@@ -163,6 +163,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "list keys matching the REGEX pattern."
 	},
+	"llen" => Command {
+		function: cmd_llen,
+		syntax: "llen KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "get the length of the list stored at the key"
+	},
 	"lpop" => Command {
 		function: cmd_lpop,
 		syntax: "lpop KEY [ NUMBER ]",
@@ -488,6 +494,13 @@ fn cmd_info(_req: &Request) -> DataType {
 
 fn cmd_keys(req: &Request) -> DataType {
 	match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_llen(req: &Request) -> DataType {
+	match kv::llen(req.parameters.iter().nth(0).unwrap().as_str()) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
 	}

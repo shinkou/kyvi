@@ -476,6 +476,23 @@ pub fn keys(p: &str) -> Result<DataType, Error> {
 	)
 }
 
+pub fn llen(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::List(l) => Ok(DataType::Integer(
+					l.len().try_into().unwrap()
+				)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Integer(0i64))
+	}
+}
+
 pub fn lpush<'a>(k: &'a str, vs: &'a Vec<String>)
 	-> Result<DataType, &'a str> {
 	let mut m = M.lock().unwrap();
@@ -839,11 +856,19 @@ mod tests {
 	#[serial]
 	fn plan7() {
 		assert_eq!(
+			llen("somekey"),
+			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
 			lpush("somekey", &vec![
 				"val1".to_string(),
 				"val2".to_string(),
 				"val3".to_string()
 			]),
+			Ok(DataType::Integer(3))
+		);
+		assert_eq!(
+			llen("somekey"),
 			Ok(DataType::Integer(3))
 		);
 		assert_eq!(
@@ -864,6 +889,10 @@ mod tests {
 				DataType::bulkStr("val2"),
 				DataType::bulkStr("val1")
 			]))
+		);
+		assert_eq!(
+			llen("somekey"),
+			Ok(DataType::Integer(0))
 		);
 		assert_eq!(
 			del(&vec!["somekey".to_string()]),
