@@ -82,7 +82,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 	"hget" => Command {
 		function: cmd_hget,
 		syntax: "hget KEY FIELD",
-		validation: |r| {1 <= r.parameters.len()},
+		validation: |r| {2 == r.parameters.len()},
 		doc: "get specified field from the hash stored at key"
 	},
 	"hgetall" => Command {

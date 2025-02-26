@@ -197,8 +197,7 @@ pub fn hexists<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 }
 
 pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
-	let m = M.lock().unwrap();
-	match m.get(k) {
+	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
 				DataType::Hashset(h) => match h.get(&DataType::bulkStr(f)) {
@@ -535,10 +534,9 @@ pub fn memsize() -> usize {
 }
 
 pub fn mget(ks: &Vec<String>) -> Result<DataType, &str> {
-	let m = M.lock().unwrap();
 	Ok(DataType::List(
 		ks.into_iter().map(|k| {
-			match m.get(k) {
+			match M.lock().unwrap().get(k) {
 				Some(data) => {
 					match data {
 						DataType::BulkString(_s) => data.clone(),
