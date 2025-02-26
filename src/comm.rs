@@ -163,6 +163,20 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "list keys matching the REGEX pattern."
 	},
+	"lpop" => Command {
+		function: cmd_lpop,
+		syntax: "lpop KEY [ NUMBER ]",
+		validation: |r| {0 < r.parameters.len() && 3 > r.parameters.len()},
+		doc: "remove and return the values from the beginning of the list \
+			stored at key"
+	},
+	"lpush" => Command {
+		function: cmd_lpush,
+		syntax: "lpush KEY VALUE [ VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "insert all the specified values at the beginning of the list \
+			stored at key"
+	},
 	"mget" => Command {
 		function: cmd_mget,
 		syntax: "mget KEY [ KEY ... ]",
@@ -429,13 +443,6 @@ fn cmd_hvals(req: &Request) -> DataType {
 	}
 }
 
-fn cmd_keys(req: &Request) -> DataType {
-	match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
-		Ok(v) => v,
-		Err(e) => DataType::err(&e.to_string())
-	}
-}
-
 fn cmd_incr(req: &Request) -> DataType {
 	match kv::incr(req.parameters.iter().nth(0).unwrap().as_str()) {
 		Ok(v) => v,
@@ -477,6 +484,38 @@ fn cmd_info(_req: &Request) -> DataType {
 		None => format!("Data size: {}B", memsize)
 	};
 	DataType::str(&ss)
+}
+
+fn cmd_keys(req: &Request) -> DataType {
+	match kv::keys(req.parameters.iter().nth(0).unwrap().as_str()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_lpop(req: &Request) -> DataType {
+	let mut n: usize = 1usize;
+    if 1 < req.parameters.len() {
+		match req.parameters.iter().nth(1).unwrap().parse::<usize>() {
+			Ok(u) => {n = u;},
+			Err(e) => {
+				return DataType::err(
+					"ERR number must be a positive integer"
+				);
+			}
+		}
+	}
+	match kv::lpop(req.parameters.iter().nth(0).unwrap().as_str(), &n) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
+fn cmd_lpush(req: &Request) -> DataType {
+	match kv::lpush(&req.parameters[0], &req.parameters[1..].to_vec()) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
 }
 
 fn cmd_mget(req: &Request) -> DataType {

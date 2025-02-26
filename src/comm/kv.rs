@@ -477,6 +477,59 @@ pub fn keys(p: &str) -> Result<DataType, Error> {
 	)
 }
 
+pub fn lpush<'a>(k: &'a str, vs: &'a Vec<String>)
+	-> Result<DataType, &'a str> {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(l) => {
+					vs.into_iter().for_each(|v| {
+						l.insert(0, DataType::bulkStr(&v));
+					});
+					Ok(DataType::Integer(l.len().try_into().unwrap()))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => {
+			let mut l: Vec<DataType> = Vec::new();
+			vs.into_iter().for_each(|v| {
+				l.insert(0, DataType::bulkStr(&v));
+			});
+			m.insert(String::from(k), DataType::List(l.clone()));
+			Ok(DataType::Integer(l.len().try_into().unwrap()))
+		}
+	}
+}
+
+pub fn lpop<'a>(k: &'a str, n: &'a usize) -> Result<DataType, &'a str> {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(somevec) => {
+					let mut l: Vec<DataType> = Vec::new();
+					for _ in 0usize..*n {
+						if 0 < somevec.len() {
+							l.push(somevec.remove(0));
+						}
+					}
+					Ok(DataType::List(l))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
+	}
+}
+
 pub fn memsize() -> usize {
 	M.lock().unwrap().iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
 }
@@ -777,6 +830,46 @@ mod tests {
 		assert_eq!(
 			hincrby("fieldvalues", "field2", 64),
 			Err("ERR Value is not an integer or out of range")
+		);
+		assert_eq!(
+			del(&vec!["fieldvalues".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+	}
+
+	#[test]
+	#[serial]
+	fn plan7() {
+		assert_eq!(
+			lpush("somekey", &vec![
+				"val1".to_string(),
+				"val2".to_string(),
+				"val3".to_string()
+			]),
+			Ok(DataType::Integer(3))
+		);
+		assert_eq!(
+			lpush("somekey", &vec![
+				"val4".to_string(),
+				"val5".to_string(),
+				"val6".to_string()
+			]),
+			Ok(DataType::Integer(6))
+		);
+		assert_eq!(
+			lpop("somekey", &6usize),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("val6"),
+				DataType::bulkStr("val5"),
+				DataType::bulkStr("val4"),
+				DataType::bulkStr("val3"),
+				DataType::bulkStr("val2"),
+				DataType::bulkStr("val1")
+			]))
+		);
+		assert_eq!(
+			del(&vec!["somekey".to_string()]),
+			Ok(DataType::Integer(1))
 		);
 	}
 }
