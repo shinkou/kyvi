@@ -64,11 +64,11 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 }
 
 pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
+	let n: i64 = match v.parse::<i64>() {
+		Ok(someint) => someint,
+		Err(_) => return Err("ERR Increment by value is not an integer")
+	};
 	let mut m = M.lock().unwrap();
-	if let Err(_) = v.parse::<i64>() {
-		return Err("ERR Increment by value is not an integer")
-	}
-	let n: i64 = v.parse::<i64>().unwrap();
 	match m.get(k) {
 		Some(data) => {
 			match data {
@@ -229,8 +229,12 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 	}
 }
 
-pub fn hincrby<'a>(k: &'a str, f: &'a str, n: i64)
+pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 	-> Result<DataType, &'a str> {
+	let someint: i64 = match n.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Increment is not a number")
+	};
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
 		Some(data) => {
@@ -240,7 +244,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: i64)
 						Some(DataType::BulkString(somestr)) => {
 							match somestr.parse::<i64>() {
 								Ok(i) => {
-									let x: i64 = i + n;
+									let x: i64 = i + someint;
 									hmap.insert(
 										DataType::bulkStr(f),
 										DataType::BulkString(x.to_string())
@@ -256,9 +260,9 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: i64)
 						None => {
 							hmap.insert(
 								DataType::bulkStr(f),
-								DataType::BulkString(n.to_string())
+								DataType::BulkString(someint.to_string())
 							);
-							Ok(DataType::Integer(n))
+							Ok(DataType::Integer(someint))
 						},
 						_ => todo!() // this should never happen since we 
 									 // only use DataType::BulkString for
@@ -275,10 +279,10 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: i64)
 			let mut somehmap: HashMap<DataType, DataType> = HashMap::new();
 			somehmap.insert(
 				DataType::bulkStr(f),
-				DataType::BulkString(n.to_string())
+				DataType::BulkString(someint.to_string())
 			);
 			m.insert(String::from(k), DataType::hset(&somehmap));
-			Ok(DataType::Integer(n))
+			Ok(DataType::Integer(someint))
 		}
 	}
 }
@@ -428,10 +432,10 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 
 pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let mut m = M.lock().unwrap();
-	if let Err(_) = v.parse::<i64>() {
-		return Err("ERR Increment by value is not an integer")
-	}
-	let n: i64 = v.parse::<i64>().unwrap();
+	let n: i64 = match v.parse::<i64>() {
+		Ok(someint) => someint,
+		Err(_) => return Err("ERR Increment by value is not an integer")
+	};
 	match m.get(k) {
 		Some(data) => {
 			match data {
@@ -474,6 +478,35 @@ pub fn keys(p: &str) -> Result<DataType, Error> {
 				.collect()
 		)
 	)
+}
+
+pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, &'a str> {
+	let idx: i64 = match i.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Index must be an integer")
+	};
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::List(somevec) => {
+					let u: usize = if idx < 0 {
+						((somevec.len() as i64) + idx) as usize
+					} else {
+						idx as usize
+					};
+					match somevec.get(u) {
+						Some(dtype) => Ok(dtype.clone()),
+						None => Ok(DataType::Null)
+					}
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Integer(0i64))
+	}
 }
 
 pub fn llen(k: &str) -> Result<DataType, &str> {
@@ -522,14 +555,18 @@ pub fn lpush<'a>(k: &'a str, vs: &'a Vec<String>)
 	}
 }
 
-pub fn lpop<'a>(k: &'a str, n: &'a usize) -> Result<DataType, &'a str> {
+pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
+	let popsize: usize = match n.parse::<usize>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Number must be a positive integer")
+	};
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
 		Some(data) => {
 			match data {
 				DataType::List(somevec) => {
 					let mut l: Vec<DataType> = Vec::new();
-					for _ in 0usize..*n {
+					for _ in 0usize..popsize {
 						if 0 < somevec.len() {
 							l.push(somevec.remove(0));
 						}
@@ -839,11 +876,11 @@ mod tests {
 			Ok(DataType::Integer(2))
 		);
 		assert_eq!(
-			hincrby("fieldvalues", "field1", 128),
+			hincrby("fieldvalues", "field1", "128"),
 			Ok(DataType::Integer(256))
 		);
 		assert_eq!(
-			hincrby("fieldvalues", "field2", 64),
+			hincrby("fieldvalues", "field2", "64"),
 			Err("ERR Value is not an integer or out of range")
 		);
 		assert_eq!(
@@ -880,7 +917,23 @@ mod tests {
 			Ok(DataType::Integer(6))
 		);
 		assert_eq!(
-			lpop("somekey", &6usize),
+			lindex("somekey", "1"),
+			Ok(DataType::bulkStr("val5"))
+		);
+		assert_eq!(
+			lindex("somekey", "-1"),
+			Ok(DataType::bulkStr("val1"))
+		);
+		assert_eq!(
+			lindex("somekey", "-6"),
+			Ok(DataType::bulkStr("val6"))
+		);
+		assert_eq!(
+			lindex("somekey", "3"),
+			Ok(DataType::bulkStr("val3"))
+		);
+		assert_eq!(
+			lpop("somekey", "6"),
 			Ok(DataType::List(vec![
 				DataType::bulkStr("val6"),
 				DataType::bulkStr("val5"),

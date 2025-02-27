@@ -163,6 +163,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "list keys matching the REGEX pattern."
 	},
+	"lindex" => Command {
+		function: cmd_lindex,
+		syntax: "lindex KEY INDEX",
+		validation: |r| {2 == r.parameters.len()},
+		doc: "get element at the index from the list stored at the key."
+	},
 	"llen" => Command {
 		function: cmd_llen,
 		syntax: "llen KEY",
@@ -399,18 +405,13 @@ fn cmd_hgetall(req: &Request) -> DataType {
 }
 
 fn cmd_hincrby(req: &Request) -> DataType {
-	match req.parameters.iter().nth(2).unwrap().parse::<i64>() {
-		Ok(i) => {
-			match kv::hincrby(
-				req.parameters.iter().nth(0).unwrap().as_str(),
-				req.parameters.iter().nth(1).unwrap().as_str(),
-				i
-			) {
-				Ok(v) => v,
-				Err(e) => DataType::err(&e.to_string())
-			}
-		},
-		Err(_) => DataType::err("ERR Increment is not a number")
+	match kv::hincrby(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters.iter().nth(2).unwrap().as_str()
+	) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
 	}
 }
 
@@ -499,6 +500,16 @@ fn cmd_keys(req: &Request) -> DataType {
 	}
 }
 
+fn cmd_lindex(req: &Request) -> DataType {
+	match kv::lindex(
+		req.parameters.iter().nth(0).unwrap(),
+		req.parameters.iter().nth(1).unwrap()
+	) {
+		Ok(v) => v,
+		Err(e) => DataType::err(&e.to_string())
+	}
+}
+
 fn cmd_llen(req: &Request) -> DataType {
 	match kv::llen(req.parameters.iter().nth(0).unwrap().as_str()) {
 		Ok(v) => v,
@@ -507,18 +518,14 @@ fn cmd_llen(req: &Request) -> DataType {
 }
 
 fn cmd_lpop(req: &Request) -> DataType {
-	let mut n: usize = 1usize;
-    if 1 < req.parameters.len() {
-		match req.parameters.iter().nth(1).unwrap().parse::<usize>() {
-			Ok(u) => {n = u;},
-			Err(e) => {
-				return DataType::err(
-					"ERR number must be a positive integer"
-				);
-			}
+	match kv::lpop(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		if 1 < req.parameters.len() {
+			req.parameters.iter().nth(1).unwrap().as_str()
+		} else {
+			"1"
 		}
-	}
-	match kv::lpop(req.parameters.iter().nth(0).unwrap().as_str(), &n) {
+	) {
 		Ok(v) => v,
 		Err(e) => DataType::err(&e.to_string())
 	}
