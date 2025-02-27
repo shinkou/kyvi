@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 
-use regex::{Regex, Error};
+use regex::Regex;
 
 use super::datatype::DataType;
 
@@ -322,14 +322,13 @@ pub fn hlen(k: &str) -> Result<DataType, &str> {
 	}
 }
 
-pub fn hmget<'a>(k: &'a str, fs: &'a Vec<String>)
-	-> Result<DataType, &'a str> {
+pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
 				DataType::Hashset(hmap) => Ok(DataType::List(
 					fs.into_iter().map(|f| {
-						match hmap.get(&DataType::bulkStr(f)) {
+						match hmap.get(&DataType::bulkStr(&f)) {
 							Some(somedtype) => somedtype.clone(),
 							None => DataType::Null
 						}
@@ -347,8 +346,7 @@ pub fn hmget<'a>(k: &'a str, fs: &'a Vec<String>)
 	}
 }
 
-pub fn hset<'a>(k: &'a str, nvs: &'a Vec<String>)
-	-> Result<DataType, &'a str> {
+pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
 	if 0 != nvs.len() % 2 {
 		return Err("ERR Number of elements must a multiple of 2");
 	}
@@ -468,16 +466,18 @@ pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	}
 }
 
-pub fn keys(p: &str) -> Result<DataType, Error> {
-	let re = Regex::new(p)?;
-	Ok(
-		DataType::List(
+pub fn keys(p: &str) -> Result<DataType, &str> {
+	match Regex::new(p) {
+		Ok(re) => Ok(DataType::List(
 			M.lock().unwrap().keys()
 				.filter(|s| re.is_match(s))
 				.map(|s| DataType::bulkStr(s))
 				.collect()
-		)
-	)
+		)),
+		Err(e) => Ok(DataType::err(
+			&e.to_string()
+		))
+	}
 }
 
 pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, &'a str> {
@@ -526,8 +526,7 @@ pub fn llen(k: &str) -> Result<DataType, &str> {
 	}
 }
 
-pub fn lpush<'a>(k: &'a str, vs: &'a Vec<String>)
-	-> Result<DataType, &'a str> {
+pub fn lpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
 		Some(data) => {
@@ -739,7 +738,7 @@ mod tests {
 	#[test]
 	#[serial]
 	fn plan5() {
-		let _ = hset("fieldvalues", &vec![
+		let _ = hset("fieldvalues", vec![
 			"field1".to_string(), "value1".to_string(),
 			"field2".to_string(), "value2".to_string()
 		]);
@@ -751,7 +750,7 @@ mod tests {
 			hget("fieldvalues", "field2"),
 			Ok(DataType::bulkStr("value2"))
 		);
-		let _ = hset("fieldvalues", &vec![
+		let _ = hset("fieldvalues", vec![
 			"field3".to_string(), "value3".to_string(),
 			"field4".to_string(), "value4".to_string(),
 			"field5".to_string(), "value5".to_string(),
@@ -764,7 +763,7 @@ mod tests {
 			hget("fieldvalues", "field4"),
 			Ok(DataType::bulkStr("value4"))
 		);
-		let _ = hset("fieldvalues", &vec![
+		let _ = hset("fieldvalues", vec![
 			"field1".to_string(), "val1".to_string(),
 			"field2".to_string(), "val2".to_string()
 		]);
@@ -806,7 +805,7 @@ mod tests {
 				vec!["field1", "field2", "field3", "field4", "field5"]
 			);
 		}
-		let _ = hset("fieldvalues", &vec![
+		let _ = hset("fieldvalues", vec![
 			"field1".to_string(), "value1".to_string(),
 			"field2".to_string(), "value2".to_string()
 		]);
@@ -824,7 +823,7 @@ mod tests {
 			);
 		}
 		assert_eq!(
-			hmget("fieldvalues", &vec![
+			hmget("fieldvalues", vec![
 				"field1".to_string(),
 				"field3".to_string(),
 				"field5".to_string()
@@ -836,7 +835,7 @@ mod tests {
 			]))
 		);
 		assert_eq!(
-			hmget("fieldvalues", &vec![
+			hmget("fieldvalues", vec![
 				"field0".to_string(),
 				"field2".to_string(),
 				"field4".to_string()
@@ -848,7 +847,7 @@ mod tests {
 			]))
 		);
 		assert_eq!(
-			hmget("nonexist", &vec![
+			hmget("nonexist", vec![
 				"field1".to_string(),
 				"field2".to_string(),
 				"field3".to_string()
@@ -869,7 +868,7 @@ mod tests {
 	#[serial]
 	fn plan6() {
 		assert_eq!(
-			hset("fieldvalues", &vec![
+			hset("fieldvalues", vec![
 				"field1".to_string(), "128".to_string(),
 				"field2".to_string(), "non-numeric".to_string()
 			]),
@@ -897,7 +896,7 @@ mod tests {
 			Ok(DataType::Integer(0))
 		);
 		assert_eq!(
-			lpush("somekey", &vec![
+			lpush("somekey", vec![
 				"val1".to_string(),
 				"val2".to_string(),
 				"val3".to_string()
@@ -909,7 +908,7 @@ mod tests {
 			Ok(DataType::Integer(3))
 		);
 		assert_eq!(
-			lpush("somekey", &vec![
+			lpush("somekey", vec![
 				"val4".to_string(),
 				"val5".to_string(),
 				"val6".to_string()
