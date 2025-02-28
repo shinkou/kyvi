@@ -671,6 +671,34 @@ pub fn mset(nvs: &Vec<String>) -> Result<DataType, &str> {
 	Ok(DataType::str("OK"))
 }
 
+pub fn rpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(l) => {
+					vs.into_iter().for_each(|v| {
+						l.push(DataType::bulkStr(&v));
+					});
+					Ok(DataType::Integer(l.len().try_into().unwrap()))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => {
+			let mut l: Vec<DataType> = Vec::new();
+			vs.into_iter().for_each(|v| {
+				l.push(DataType::bulkStr(&v));
+			});
+			m.insert(String::from(k), DataType::List(l.clone()));
+			Ok(DataType::Integer(l.len().try_into().unwrap()))
+		}
+	}
+}
+
 pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let _ = M.lock().unwrap().insert(String::from(k), DataType::bulkStr(v));
 	Ok(DataType::str("OK"))
@@ -1028,6 +1056,22 @@ mod tests {
 		assert_eq!(
 			llen("somekey"),
 			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
+			rpush("somekey", vec![
+				"nval1".to_string(),
+				"nval2".to_string(),
+				"nval3".to_string()
+			]),
+			Ok(DataType::Integer(3))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("nval1"),
+				DataType::bulkStr("nval2"),
+				DataType::bulkStr("nval3")
+			]))
 		);
 		assert_eq!(
 			del(&vec!["somekey".to_string()]),

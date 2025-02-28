@@ -213,6 +213,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {0 == r.parameters.len()},
 		doc: "close current connection and quit."
 	},
+	"rpush" => Command {
+		function: cmd_rpush,
+		syntax: "rpush KEY VALUE [ VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "append all the specified values at the end of the list \
+			stored at key"
+	},
 	"set" => Command {
 		function: cmd_set,
 		syntax: "set KEY VALUE",
@@ -493,6 +500,10 @@ fn cmd_mset(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_quit(_req: &Request) -> Result<DataType, &str> {
 	Ok(DataType::str("OK"))
+}
+
+fn cmd_rpush(req: &Request) -> Result<DataType, &str> {
+	kv::rpush(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
 fn cmd_set(req: &Request) -> Result<DataType, &str> {
