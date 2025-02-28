@@ -582,6 +582,64 @@ pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 	}
 }
 
+// the Redis' LRANGE specs is soooooo weird :(
+pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
+	-> Result<DataType, &'a str> {
+	let mut istart: i64 = match i.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Start index must be a number")
+	};
+	let mut istop: i64 = match j.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Stop index must be a number")
+	};
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::List(somevec) => {
+					let veclen: i64 = somevec.len() as i64;
+					// adjust -ve start and stop indexes
+					if istart < 0 {
+						istart = veclen + istart;
+					};
+					if istop < 0 {
+						istop = veclen + istop;
+					};
+					if istop < istart || istop < 0 || istart > veclen {
+						// return empty list if indexes do not qualify
+						Ok(DataType::List(vec![]))
+					} else {
+						let ustart: usize = if 0i64 > istart {
+							0usize
+						} else if veclen < istart {
+							somevec.len()
+						} else {
+							istart as usize
+						};
+						let ustop: usize = if 0i64 > istop {
+							0usize
+						} else if veclen - 1 < istop {
+							// this looks weird because of the +1 below
+							somevec.len() - 1usize
+						} else {
+							istop as usize
+						};
+						Ok(DataType::List(
+							// always add 1 to stop index for inclusiveness
+							somevec[ustart..(ustop + 1usize)].to_vec()
+						))
+					}
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
+	}
+}
+
 pub fn memsize() -> usize {
 	M.lock().unwrap().iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
 }
@@ -930,6 +988,31 @@ mod tests {
 		assert_eq!(
 			lindex("somekey", "3"),
 			Ok(DataType::bulkStr("val3"))
+		);
+		assert_eq!(
+			lrange("somekey", "1", "1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("val5")
+			]))
+		);
+		assert_eq!(
+			lrange("somekey", "-6", "2"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("val6"),
+				DataType::bulkStr("val5"),
+				DataType::bulkStr("val4")
+			]))
+		);
+		assert_eq!(
+			lrange("somekey", "-100", "100"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("val6"),
+				DataType::bulkStr("val5"),
+				DataType::bulkStr("val4"),
+				DataType::bulkStr("val3"),
+				DataType::bulkStr("val2"),
+				DataType::bulkStr("val1")
+			]))
 		);
 		assert_eq!(
 			lpop("somekey", "6"),

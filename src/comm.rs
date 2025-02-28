@@ -189,6 +189,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "insert all the specified values at the beginning of the list \
 			stored at key"
 	},
+	"lrange" => Command {
+		function: cmd_lrange,
+		syntax: "lrange KEY START STOP",
+		validation: |r| {3 == r.parameters.len()},
+		doc: "get elements from start to stop of the list stored at key"
+	},
 	"mget" => Command {
 		function: cmd_mget,
 		syntax: "mget KEY [ KEY ... ]",
@@ -462,6 +468,14 @@ fn cmd_lpop(req: &Request) -> Result<DataType, &str> {
 		} else {
 			"1"
 		}
+	)
+}
+
+fn cmd_lrange(req: &Request) -> Result<DataType, &str> {
+	kv::lrange(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters.iter().nth(2).unwrap().as_str()
 	)
 }
 
