@@ -671,6 +671,34 @@ pub fn mset(nvs: &Vec<String>) -> Result<DataType, &str> {
 	Ok(DataType::str("OK"))
 }
 
+pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
+	let popsize: usize = match n.parse::<usize>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Number must be a positive integer")
+	};
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(somevec) => {
+					let mut l: Vec<DataType> = Vec::new();
+					for _ in 0usize..popsize {
+						if 0 < somevec.len() {
+							l.push(somevec.pop().unwrap());
+						}
+					}
+					Ok(DataType::List(l))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
+	}
+}
+
 pub fn rpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
@@ -1072,6 +1100,29 @@ mod tests {
 				DataType::bulkStr("nval2"),
 				DataType::bulkStr("nval3")
 			]))
+		);
+		assert_eq!(
+			rpop("somekey", "2"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("nval3"),
+				DataType::bulkStr("nval2")
+			]))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("nval1")
+			]))
+		);
+		assert_eq!(
+			rpop("somekey", "1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("nval1")
+			]))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![]))
 		);
 		assert_eq!(
 			del(&vec!["somekey".to_string()]),
