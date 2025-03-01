@@ -640,6 +640,58 @@ pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
 	}
 }
 
+pub fn ltrim<'a>(k: &'a str, i: &'a str, j: &'a str)
+	-> Result<DataType, &'a str> {
+	let mut istart: i64 = match i.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Start index must be a number")
+	};
+	let mut istop: i64 = match j.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Stop index must be a number")
+	};
+	match M.lock().unwrap().get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(somevec) => {
+					let veclen: i64 = somevec.len() as i64;
+					// adjust -ve start and stop indexes
+					if istart < 0 {
+						istart = veclen + istart;
+					};
+					if istop < 0 {
+						istop = veclen + istop;
+					};
+					if istop >= istart && istop >= 0 && istart <= veclen {
+						let ustart: usize = if 0i64 > istart {
+							0usize
+						} else if veclen < istart {
+							somevec.len()
+						} else {
+							istart as usize
+						};
+						let ustop: usize = if 0i64 > istop {
+							0usize
+						} else if veclen < istop {
+							somevec.len()
+						} else {
+							istop as usize
+						};
+						somevec.drain(0..ustart);
+						somevec.drain(ustop..somevec.len());
+					};
+					Ok(DataType::bulkStr("OK"))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::bulkStr("OK"))
+	}
+}
+
 pub fn memsize() -> usize {
 	M.lock().unwrap().iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
 }
@@ -1123,6 +1175,28 @@ mod tests {
 		assert_eq!(
 			lrange("somekey", "0", "-1"),
 			Ok(DataType::List(vec![]))
+		);
+		assert_eq!(
+			rpush("somekey", vec![
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string(),
+				"four".to_string(),
+				"five".to_string()
+			]),
+			Ok(DataType::Integer(5))
+		);
+		assert_eq!(
+			ltrim("somekey", "1", "-2"),
+			Ok(DataType::bulkStr("OK"))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("two"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("four")
+			]))
 		);
 		assert_eq!(
 			del(&vec!["somekey".to_string()]),

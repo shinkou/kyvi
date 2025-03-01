@@ -195,6 +195,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {3 == r.parameters.len()},
 		doc: "get elements from start to stop of the list stored at key"
 	},
+	"ltrim" => Command {
+		function: cmd_ltrim,
+		syntax: "ltrim KEY START STOP",
+		validation: |r| {3 == r.parameters.len()},
+		doc: "trim the list stored at key"
+	},
 	"mget" => Command {
 		function: cmd_mget,
 		syntax: "mget KEY [ KEY ... ]",
@@ -485,6 +491,10 @@ fn cmd_lpop(req: &Request) -> Result<DataType, &str> {
 	)
 }
 
+fn cmd_lpush(req: &Request) -> Result<DataType, &str> {
+	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec())
+}
+
 fn cmd_lrange(req: &Request) -> Result<DataType, &str> {
 	kv::lrange(
 		req.parameters.iter().nth(0).unwrap().as_str(),
@@ -493,8 +503,12 @@ fn cmd_lrange(req: &Request) -> Result<DataType, &str> {
 	)
 }
 
-fn cmd_lpush(req: &Request) -> Result<DataType, &str> {
-	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec())
+fn cmd_ltrim(req: &Request) -> Result<DataType, &str> {
+	kv::ltrim(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters.iter().nth(2).unwrap().as_str()
+	)
 }
 
 fn cmd_mget(req: &Request) -> Result<DataType, &str> {
