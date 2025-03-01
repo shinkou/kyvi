@@ -693,6 +693,42 @@ pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
 	}
 }
 
+pub fn lset<'a>(k: &'a str, i: &'a str, e: &'a str)
+	-> Result<DataType, &'a str> {
+	let idx: i64 = match i.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Index must be an integer")
+	};
+	match M.lock().unwrap().get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(l) => {
+					let veclen: i64 = l.len() as i64;
+					let realidx: i64 = if 0 > idx {
+						(l.len() as i64) + idx
+					} else {
+						idx
+					};
+					if 0 <= realidx && realidx < veclen {
+						let element: &mut DataType = l.get_mut(
+							realidx as usize
+						).unwrap();
+						*element = DataType::bulkStr(e);
+						Ok(DataType::bulkStr("OK"))
+					} else {
+						Err("ERR Index out of range")
+					}
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Err("ERR No such key")
+	}
+}
+
 pub fn ltrim<'a>(k: &'a str, i: &'a str, j: &'a str)
 	-> Result<DataType, &'a str> {
 	let mut istart: i64 = match i.parse::<i64>() {
@@ -1350,6 +1386,37 @@ mod tests {
 				DataType::bulkStr("three"),
 				DataType::bulkStr("one"),
 				DataType::bulkStr("three")
+			]))
+		);
+		assert_eq!(
+			lset("somekey", "1", "two"),
+			Ok(DataType::bulkStr("OK"))
+		);
+		assert_eq!(
+			lset("somekey", "-1", "six"),
+			Ok(DataType::bulkStr("OK"))
+		);
+		assert_eq!(
+			lset("somekey", "-4", "three"),
+			Ok(DataType::bulkStr("OK"))
+		);
+		assert_eq!(
+			lset("somekey", "4", "five"),
+			Ok(DataType::bulkStr("OK"))
+		);
+		assert_eq!(
+			lset("somekey", "3", "four"),
+			Ok(DataType::bulkStr("OK"))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("one"),
+				DataType::bulkStr("two"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("four"),
+				DataType::bulkStr("five"),
+				DataType::bulkStr("six")
 			]))
 		);
 		assert_eq!(

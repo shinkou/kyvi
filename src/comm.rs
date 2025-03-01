@@ -202,6 +202,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "remove the first count occurrences of element from the list \
 			stored at key"
 	},
+	"lset" => Command {
+		function: cmd_lset,
+		syntax: "lset KEY INDEX ELEMENT",
+		validation: |r| {3 == r.parameters.len()},
+		doc: "set element at the index in the list stored at key"
+	},
 	"ltrim" => Command {
 		function: cmd_ltrim,
 		syntax: "ltrim KEY START STOP",
@@ -512,6 +518,14 @@ fn cmd_lrange(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_lrem(req: &Request) -> Result<DataType, &str> {
 	kv::lrem(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters.iter().nth(2).unwrap().as_str()
+	)
+}
+
+fn cmd_lset(req: &Request) -> Result<DataType, &str> {
+	kv::lset(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
 		req.parameters.iter().nth(2).unwrap().as_str()
