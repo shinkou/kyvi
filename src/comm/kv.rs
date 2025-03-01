@@ -640,6 +640,56 @@ pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
 	}
 }
 
+pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
+	-> Result<DataType, &'a str> {
+	let cnt: i64 = n.parse::<i64>().expect("ERR count must be a number");
+	let dte = DataType::bulkStr(e);
+	match M.lock().unwrap().get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(l) => {
+					let mut idxs: Vec<usize> = Vec::new();
+					if cnt > 0 {
+						for i in 0..l.len() {
+							if *l.get(i).unwrap() == dte {
+								idxs.push(i.clone())
+							};
+							if idxs.len() >= (cnt as usize) {
+								break;
+							};
+						}
+					} else if cnt < 0 {
+						for i in (0..l.len()).rev() {
+							if *l.get(i).unwrap() == dte {
+								idxs.push(i.clone())
+							};
+							if idxs.len() >= ((cnt * -1) as usize) {
+								break;
+							};
+						}
+					} else {
+						for i in 0..l.len() {
+							if *l.get(i).unwrap() == dte {
+								idxs.push(i.clone())
+							};
+						}
+					};
+					idxs.sort();
+					for i in (&idxs).iter().rev() {
+						let _ = l.remove(*i);
+					};
+					Ok(DataType::Integer(idxs.len() as i64))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
+	}
+}
+
 pub fn ltrim<'a>(k: &'a str, i: &'a str, j: &'a str)
 	-> Result<DataType, &'a str> {
 	let mut istart: i64 = match i.parse::<i64>() {
@@ -1196,6 +1246,107 @@ mod tests {
 				DataType::bulkStr("two"),
 				DataType::bulkStr("three"),
 				DataType::bulkStr("four")
+			]))
+		);
+		assert_eq!(
+			del(&vec!["somekey".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+		assert_eq!(
+			rpush("somekey", vec![
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string(),
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string(),
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string()
+			]),
+			Ok(DataType::Integer(9))
+		);
+		assert_eq!(
+			lrem("somekey", "2", "two"),
+			Ok(DataType::Integer(2))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("one"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("one"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("one"),
+				DataType::bulkStr("two"),
+				DataType::bulkStr("three")
+			]))
+		);
+		assert_eq!(
+			del(&vec!["somekey".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+		assert_eq!(
+			rpush("somekey", vec![
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string(),
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string(),
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string()
+			]),
+			Ok(DataType::Integer(9))
+		);
+		assert_eq!(
+			lrem("somekey", "-2", "two"),
+			Ok(DataType::Integer(2))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("one"),
+				DataType::bulkStr("two"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("one"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("one"),
+				DataType::bulkStr("three")
+			]))
+		);
+		assert_eq!(
+			del(&vec!["somekey".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+		assert_eq!(
+			rpush("somekey", vec![
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string(),
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string(),
+				"one".to_string(),
+				"two".to_string(),
+				"three".to_string()
+			]),
+			Ok(DataType::Integer(9))
+		);
+		assert_eq!(
+			lrem("somekey", "0", "two"),
+			Ok(DataType::Integer(3))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("one"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("one"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("one"),
+				DataType::bulkStr("three")
 			]))
 		);
 		assert_eq!(

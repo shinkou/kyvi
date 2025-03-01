@@ -195,6 +195,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {3 == r.parameters.len()},
 		doc: "get elements from start to stop of the list stored at key"
 	},
+	"lrem" => Command {
+		function: cmd_lrem,
+		syntax: "lrem KEY COUNT ELEMENT",
+		validation: |r| {3 == r.parameters.len()},
+		doc: "remove the first count occurrences of element from the list \
+			stored at key"
+	},
 	"ltrim" => Command {
 		function: cmd_ltrim,
 		syntax: "ltrim KEY START STOP",
@@ -497,6 +504,14 @@ fn cmd_lpush(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_lrange(req: &Request) -> Result<DataType, &str> {
 	kv::lrange(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters.iter().nth(2).unwrap().as_str()
+	)
+}
+
+fn cmd_lrem(req: &Request) -> Result<DataType, &str> {
+	kv::lrem(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
 		req.parameters.iter().nth(2).unwrap().as_str()
