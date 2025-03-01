@@ -509,6 +509,37 @@ pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, &'a str> {
 	}
 }
 
+pub fn linsert<'a>(k: &'a str, o: &'a str, p: &'a str, e: &'a str)
+	-> Result<DataType, &'a str> {
+	match M.lock().unwrap().get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::List(l) => {
+					match l.iter().position(
+						|v| {*v == DataType::bulkStr(p)}
+					) {
+						Some(i) => {
+							let idx = match o.to_ascii_lowercase().as_str() {
+								"before" => i,
+								"after" => i + 1usize,
+								_ => return Err("ERR Syntax error")
+							};
+							l.insert(idx, DataType::bulkStr(e));
+							Ok(DataType::Integer(l.len() as i64))
+						},
+						None => return Ok(DataType::Integer(-1))
+					}
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Integer(0))
+	}
+}
+
 pub fn llen(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
@@ -1417,6 +1448,35 @@ mod tests {
 				DataType::bulkStr("four"),
 				DataType::bulkStr("five"),
 				DataType::bulkStr("six")
+			]))
+		);
+		assert_eq!(
+			linsert("somekey", "before", "one", "zero"),
+			Ok(DataType::Integer(7))
+		);
+		assert_eq!(
+			linsert("somekey", "after", "six", "seven"),
+			Ok(DataType::Integer(8))
+		);
+		assert_eq!(
+			linsert("somekey", "after", "ten", "eleven"),
+			Ok(DataType::Integer(-1))
+		);
+		assert_eq!(
+			linsert("nonkey", "after", "seven", "eight"),
+			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
+			lrange("somekey", "0", "-1"),
+			Ok(DataType::List(vec![
+				DataType::bulkStr("zero"),
+				DataType::bulkStr("one"),
+				DataType::bulkStr("two"),
+				DataType::bulkStr("three"),
+				DataType::bulkStr("four"),
+				DataType::bulkStr("five"),
+				DataType::bulkStr("six"),
+				DataType::bulkStr("seven")
 			]))
 		);
 		assert_eq!(

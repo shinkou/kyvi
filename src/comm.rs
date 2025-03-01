@@ -169,6 +169,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {2 == r.parameters.len()},
 		doc: "get element at the index from the list stored at the key."
 	},
+	"linsert" => Command {
+		function: cmd_linsert,
+		syntax: "linsert KEY <BEFORE | AFTER> PIVOT ELEMENT",
+		validation: |r| {4 == r.parameters.len()},
+		doc: "insert element before or after the pivot in the list stored \
+			at the key"
+	},
 	"llen" => Command {
 		function: cmd_llen,
 		syntax: "llen KEY",
@@ -486,6 +493,15 @@ fn cmd_lindex(req: &Request) -> Result<DataType, &str> {
 	kv::lindex(
 		req.parameters.iter().nth(0).unwrap(),
 		req.parameters.iter().nth(1).unwrap()
+	)
+}
+
+fn cmd_linsert(req: &Request) -> Result<DataType, &str> {
+	kv::linsert(
+		req.parameters.iter().nth(0).unwrap(),
+		req.parameters.iter().nth(1).unwrap(),
+		req.parameters.iter().nth(2).unwrap(),
+		req.parameters.iter().nth(3).unwrap()
 	)
 }
 
