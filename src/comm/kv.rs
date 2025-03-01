@@ -642,7 +642,10 @@ pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
 
 pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
 	-> Result<DataType, &'a str> {
-	let cnt: i64 = n.parse::<i64>().expect("ERR count must be a number");
+	let cnt: i64 = match n.parse::<i64>() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Count must be a number")
+	};
 	let dte = DataType::bulkStr(e);
 	match M.lock().unwrap().get_mut(k) {
 		Some(data) => {
