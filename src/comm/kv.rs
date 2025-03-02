@@ -103,7 +103,7 @@ pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 
 pub fn del(ks: &Vec<String>) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
-	let cnt: i64 = ks.into_iter().map(|k| {
+	let cnt: i64 = ks.iter().map(|k| {
 		match m.remove(k) {
 			Some(_) => 1i64,
 			None => 0i64
@@ -155,7 +155,7 @@ pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 		Some(data) => {
 			match data {
 				DataType::Hashset(hmap) => {
-					let cnt = fs.into_iter().map(|f| {
+					let cnt = fs.iter().map(|f| {
 						match hmap.remove(&DataType::bulkStr(&f)) {
 							Some(_) => 1i64,
 							None => 0i64
@@ -327,7 +327,7 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 		Some(data) => {
 			match data {
 				DataType::Hashset(hmap) => Ok(DataType::List(
-					fs.into_iter().map(|f| {
+					fs.iter().map(|f| {
 						match hmap.get(&DataType::bulkStr(&f)) {
 							Some(somedtype) => somedtype.clone(),
 							None => DataType::Null
@@ -341,7 +341,7 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 			}
 		},
 		None => Ok(DataType::List(
-			fs.into_iter().map(|_| {DataType::Null}).collect::<Vec<_>>()
+			fs.iter().map(|_| {DataType::Null}).collect::<Vec<_>>()
 		))
 	}
 }
@@ -563,7 +563,7 @@ pub fn lpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 		Some(data) => {
 			match data {
 				DataType::List(l) => {
-					vs.into_iter().for_each(|v| {
+					vs.iter().for_each(|v| {
 						l.insert(0, DataType::bulkStr(&v));
 					});
 					Ok(DataType::Integer(l.len().try_into().unwrap()))
@@ -576,7 +576,7 @@ pub fn lpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 		},
 		None => {
 			let mut l: Vec<DataType> = Vec::new();
-			vs.into_iter().for_each(|v| {
+			vs.iter().for_each(|v| {
 				l.insert(0, DataType::bulkStr(&v));
 			});
 			m.insert(String::from(k), DataType::List(l.clone()));
@@ -818,7 +818,7 @@ pub fn memsize() -> usize {
 
 pub fn mget(ks: &Vec<String>) -> Result<DataType, &str> {
 	Ok(DataType::List(
-		ks.into_iter().map(|k| {
+		ks.iter().map(|k| {
 			match M.lock().unwrap().get(k) {
 				Some(data) => {
 					match data {
@@ -877,7 +877,7 @@ pub fn rpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 		Some(data) => {
 			match data {
 				DataType::List(l) => {
-					vs.into_iter().for_each(|v| {
+					vs.iter().for_each(|v| {
 						l.push(DataType::bulkStr(&v));
 					});
 					Ok(DataType::Integer(l.len().try_into().unwrap()))
@@ -890,7 +890,7 @@ pub fn rpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 		},
 		None => {
 			let mut l: Vec<DataType> = Vec::new();
-			vs.into_iter().for_each(|v| {
+			vs.iter().for_each(|v| {
 				l.push(DataType::bulkStr(&v));
 			});
 			m.insert(String::from(k), DataType::List(l.clone()));
@@ -1079,9 +1079,9 @@ mod tests {
 		);
 		assert_eq!(hlen("fieldvalues"), Ok(DataType::Integer(5)));
 		if let Ok(DataType::List(somekeys)) = hkeys("fieldvalues") {
-			let mut fields = somekeys.into_iter().map(|e| {
+			let mut fields = somekeys.iter().map(|e| {
 				match e {
-					DataType::BulkString(s) => s,
+					DataType::BulkString(s) => s.clone(),
 					_ => "".to_string()
 				}
 			}).collect::<Vec<_>>();
@@ -1096,9 +1096,9 @@ mod tests {
 			"field2".to_string(), "value2".to_string()
 		]);
 		if let Ok(DataType::List(somevals)) = hvals("fieldvalues") {
-			let mut fields = somevals.into_iter().map(|e| {
+			let mut fields = somevals.iter().map(|e| {
 				match e {
-					DataType::BulkString(s) => s,
+					DataType::BulkString(s) => s.clone(),
 					_ => "".to_string()
 				}
 			}).collect::<Vec<_>>();
