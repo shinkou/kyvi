@@ -557,7 +557,8 @@ pub fn llen(k: &str) -> Result<DataType, &str> {
 	}
 }
 
-pub fn lpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
+pub fn lpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
+	-> Result<DataType, &'a str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
 		Some(data) => {
@@ -574,13 +575,18 @@ pub fn lpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 				)
 			}
 		},
-		None => {
-			let mut l: Vec<DataType> = Vec::new();
-			vs.iter().for_each(|v| {
-				l.insert(0, DataType::bulkStr(&v));
-			});
-			m.insert(String::from(k), DataType::List(l.clone()));
-			Ok(DataType::Integer(l.len().try_into().unwrap()))
+		None => match x {
+			true => {
+				Ok(DataType::Integer(0))
+			},
+			false => {
+				let mut l: Vec<DataType> = Vec::new();
+				vs.iter().for_each(|v| {
+					l.insert(0, DataType::bulkStr(&v));
+				});
+				m.insert(String::from(k), DataType::List(l.clone()));
+				Ok(DataType::Integer(l.len().try_into().unwrap()))
+			}
 		}
 	}
 }
@@ -871,7 +877,8 @@ pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 	}
 }
 
-pub fn rpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
+pub fn rpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
+	-> Result<DataType, &'a str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
 		Some(data) => {
@@ -888,13 +895,18 @@ pub fn rpush(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 				)
 			}
 		},
-		None => {
-			let mut l: Vec<DataType> = Vec::new();
-			vs.iter().for_each(|v| {
-				l.push(DataType::bulkStr(&v));
-			});
-			m.insert(String::from(k), DataType::List(l.clone()));
-			Ok(DataType::Integer(l.len().try_into().unwrap()))
+		None => match x {
+			true => {
+				Ok(DataType::Integer(0))
+			},
+			false => {
+				let mut l: Vec<DataType> = Vec::new();
+				vs.iter().for_each(|v| {
+					l.push(DataType::bulkStr(&v));
+				});
+				m.insert(String::from(k), DataType::List(l.clone()));
+				Ok(DataType::Integer(l.len().try_into().unwrap()))
+			}
 		}
 	}
 }
@@ -1182,11 +1194,15 @@ mod tests {
 			Ok(DataType::Integer(0))
 		);
 		assert_eq!(
-			lpush("somekey", vec![
-				"val1".to_string(),
-				"val2".to_string(),
-				"val3".to_string()
-			]),
+			lpush(
+				"somekey",
+				vec![
+					"val1".to_string(),
+					"val2".to_string(),
+					"val3".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(3))
 		);
 		assert_eq!(
@@ -1194,11 +1210,15 @@ mod tests {
 			Ok(DataType::Integer(3))
 		);
 		assert_eq!(
-			lpush("somekey", vec![
-				"val4".to_string(),
-				"val5".to_string(),
-				"val6".to_string()
-			]),
+			lpush(
+				"somekey",
+				vec![
+					"val4".to_string(),
+					"val5".to_string(),
+					"val6".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(6))
 		);
 		assert_eq!(
@@ -1258,11 +1278,15 @@ mod tests {
 			Ok(DataType::Integer(0))
 		);
 		assert_eq!(
-			rpush("somekey", vec![
-				"nval1".to_string(),
-				"nval2".to_string(),
-				"nval3".to_string()
-			]),
+			rpush(
+				"somekey",
+				vec![
+					"nval1".to_string(),
+					"nval2".to_string(),
+					"nval3".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(3))
 		);
 		assert_eq!(
@@ -1297,13 +1321,17 @@ mod tests {
 			Ok(DataType::List(vec![]))
 		);
 		assert_eq!(
-			rpush("somekey", vec![
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string(),
-				"four".to_string(),
-				"five".to_string()
-			]),
+			rpush(
+				"somekey",
+				vec![
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"four".to_string(),
+					"five".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(5))
 		);
 		assert_eq!(
@@ -1323,17 +1351,21 @@ mod tests {
 			Ok(DataType::Integer(1))
 		);
 		assert_eq!(
-			rpush("somekey", vec![
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string(),
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string(),
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string()
-			]),
+			rpush(
+				"somekey",
+				vec![
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(9))
 		);
 		assert_eq!(
@@ -1357,17 +1389,21 @@ mod tests {
 			Ok(DataType::Integer(1))
 		);
 		assert_eq!(
-			rpush("somekey", vec![
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string(),
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string(),
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string()
-			]),
+			rpush(
+				"somekey",
+				vec![
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(9))
 		);
 		assert_eq!(
@@ -1391,18 +1427,54 @@ mod tests {
 			Ok(DataType::Integer(1))
 		);
 		assert_eq!(
-			rpush("somekey", vec![
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string(),
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string(),
-				"one".to_string(),
-				"two".to_string(),
-				"three".to_string()
-			]),
+			rpush(
+				"somekey",
+				vec![
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(9))
+		);
+		assert_eq!(
+			rpush(
+				"nonkey",
+				vec![
+					"un".to_string(),
+					"deux".to_string(),
+					"trois".to_string()
+				],
+				&true
+			),
+			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
+			lrange("nonkey", "0", "-1"),
+			Ok(DataType::Null)
+		);
+		assert_eq!(
+			lpush(
+				"nonkey",
+				vec![
+					"un".to_string(),
+					"deux".to_string(),
+					"trois".to_string()
+				],
+				&true
+			),
+			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
+			lrange("nonkey", "0", "-1"),
+			Ok(DataType::Null)
 		);
 		assert_eq!(
 			lrem("somekey", "0", "two"),

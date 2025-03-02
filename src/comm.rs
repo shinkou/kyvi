@@ -196,6 +196,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "insert all the specified values at the beginning of the list \
 			stored at key"
 	},
+	"lpushx" => Command {
+		function: cmd_lpushx,
+		syntax: "lpushx KEY VALUE [ VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "insert all the specified values at the beginning of the list \
+			stored at key"
+	},
 	"lrange" => Command {
 		function: cmd_lrange,
 		syntax: "lrange KEY START STOP",
@@ -249,6 +256,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 	"rpush" => Command {
 		function: cmd_rpush,
 		syntax: "rpush KEY VALUE [ VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "append all the specified values at the end of the list \
+			stored at key"
+	},
+	"rpushx" => Command {
+		function: cmd_rpushx,
+		syntax: "rpushx KEY VALUE [ VALUE ... ]",
 		validation: |r| {1 < r.parameters.len()},
 		doc: "append all the specified values at the end of the list \
 			stored at key"
@@ -521,7 +535,11 @@ fn cmd_lpop(req: &Request) -> Result<DataType, &str> {
 }
 
 fn cmd_lpush(req: &Request) -> Result<DataType, &str> {
-	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec())
+	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), &false)
+}
+
+fn cmd_lpushx(req: &Request) -> Result<DataType, &str> {
+	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), &true)
 }
 
 fn cmd_lrange(req: &Request) -> Result<DataType, &str> {
@@ -580,7 +598,11 @@ fn cmd_rpop(req: &Request) -> Result<DataType, &str> {
 }
 
 fn cmd_rpush(req: &Request) -> Result<DataType, &str> {
-	kv::rpush(&req.parameters[0], req.parameters[1..].to_vec())
+	kv::rpush(&req.parameters[0], req.parameters[1..].to_vec(), &false)
+}
+
+fn cmd_rpushx(req: &Request) -> Result<DataType, &str> {
+	kv::rpush(&req.parameters[0], req.parameters[1..].to_vec(), &true)
 }
 
 fn cmd_set(req: &Request) -> Result<DataType, &str> {
