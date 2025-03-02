@@ -346,7 +346,8 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	}
 }
 
-pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
+pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
+	-> Result<DataType, &'a str> {
 	if 0 != nvs.len() % 2 {
 		return Err("ERR Number of elements must a multiple of 2");
 	}
@@ -355,11 +356,32 @@ pub fn hset(k: &str, nvs: Vec<String>) -> Result<DataType, &str> {
 		Some(data) => {
 			match data {
 				DataType::Hashset(hmap) => {
-					nvs.chunks(2).for_each(|x| {hmap.insert(
-						DataType::bulkStr(&x[0]),
-						DataType::bulkStr(&x[1])
-					);});
-					Ok(DataType::Integer(hmap.len().try_into().unwrap()))
+					let mut cnt: i64 = 0;
+					match nx {
+						true => {
+							nvs.chunks(2).for_each(|x| {
+								if !hmap.contains_key(
+									&DataType::bulkStr(&x[0])
+								) {
+									hmap.insert(
+										DataType::bulkStr(&x[0]),
+										DataType::bulkStr(&x[1])
+									);
+									cnt += 1;
+								}
+							});
+						},
+						false => {
+							nvs.chunks(2).for_each(|x| {
+								hmap.insert(
+									DataType::bulkStr(&x[0]),
+									DataType::bulkStr(&x[1])
+								);
+								cnt += 1;
+							});
+						}
+					}
+					Ok(DataType::Integer(cnt))
 				},
 				_ => Err("ERR Key must associate with a hash")
 			}
@@ -1036,10 +1058,14 @@ mod tests {
 	#[test]
 	#[serial]
 	fn plan5() {
-		let _ = hset("fieldvalues", vec![
-			"field1".to_string(), "value1".to_string(),
-			"field2".to_string(), "value2".to_string()
-		]);
+		let _ = hset(
+			"fieldvalues",
+			vec![
+				"field1".to_string(), "value1".to_string(),
+				"field2".to_string(), "value2".to_string()
+			],
+			&false
+		);
 		assert_eq!(
 			hget("fieldvalues", "field1"),
 			Ok(DataType::bulkStr("value1"))
@@ -1048,11 +1074,15 @@ mod tests {
 			hget("fieldvalues", "field2"),
 			Ok(DataType::bulkStr("value2"))
 		);
-		let _ = hset("fieldvalues", vec![
-			"field3".to_string(), "value3".to_string(),
-			"field4".to_string(), "value4".to_string(),
-			"field5".to_string(), "value5".to_string(),
-		]);
+		let _ = hset(
+			"fieldvalues",
+			vec![
+				"field3".to_string(), "value3".to_string(),
+				"field4".to_string(), "value4".to_string(),
+				"field5".to_string(), "value5".to_string(),
+			],
+			&false
+		);
 		assert_eq!(
 			hget("fieldvalues", "field1"),
 			Ok(DataType::bulkStr("value1"))
@@ -1061,10 +1091,14 @@ mod tests {
 			hget("fieldvalues", "field4"),
 			Ok(DataType::bulkStr("value4"))
 		);
-		let _ = hset("fieldvalues", vec![
-			"field1".to_string(), "val1".to_string(),
-			"field2".to_string(), "val2".to_string()
-		]);
+		let _ = hset(
+			"fieldvalues",
+			vec![
+				"field1".to_string(), "val1".to_string(),
+				"field2".to_string(), "val2".to_string()
+			],
+			&false
+		);
 		assert_eq!(
 			hget("fieldvalues", "field5"),
 			Ok(DataType::bulkStr("value5"))
@@ -1103,10 +1137,14 @@ mod tests {
 				vec!["field1", "field2", "field3", "field4", "field5"]
 			);
 		}
-		let _ = hset("fieldvalues", vec![
-			"field1".to_string(), "value1".to_string(),
-			"field2".to_string(), "value2".to_string()
-		]);
+		let _ = hset(
+			"fieldvalues",
+			vec![
+				"field1".to_string(), "value1".to_string(),
+				"field2".to_string(), "value2".to_string()
+			],
+			&false
+		);
 		if let Ok(DataType::List(somevals)) = hvals("fieldvalues") {
 			let mut fields = somevals.iter().map(|e| {
 				match e {
@@ -1166,10 +1204,14 @@ mod tests {
 	#[serial]
 	fn plan6() {
 		assert_eq!(
-			hset("fieldvalues", vec![
-				"field1".to_string(), "128".to_string(),
-				"field2".to_string(), "non-numeric".to_string()
-			]),
+			hset(
+				"fieldvalues",
+				vec![
+					"field1".to_string(), "128".to_string(),
+					"field2".to_string(), "non-numeric".to_string()
+				],
+				&false
+			),
 			Ok(DataType::Integer(2))
 		);
 		assert_eq!(

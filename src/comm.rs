@@ -133,6 +133,15 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		},
 		doc: "set specified fields to values in the hash stored at key"
 	},
+	"hsetnx" => Command {
+		function: cmd_hsetnx,
+		syntax: "hsetnx KEY FIELD VALUE [ FIELD VALUE ... ]",
+		validation: |r| {
+			2 < r.parameters.len() && 1 == r.parameters.len() % 2
+		},
+		doc: "set specified non-existing fields to values in the hash \
+			stored at key"
+	},
 	"hvals" => Command {
 		function: cmd_hvals,
 		syntax: "hvals KEY",
@@ -455,7 +464,11 @@ fn cmd_hmget(req: &Request) -> Result<DataType, &str> {
 }
 
 fn cmd_hset(req: &Request) -> Result<DataType, &str> {
-	kv::hset(&req.parameters[0], req.parameters[1..].to_vec())
+	kv::hset(&req.parameters[0], req.parameters[1..].to_vec(), &false)
+}
+
+fn cmd_hsetnx(req: &Request) -> Result<DataType, &str> {
+	kv::hset(&req.parameters[0], req.parameters[1..].to_vec(), &true)
 }
 
 fn cmd_hvals(req: &Request) -> Result<DataType, &str> {
