@@ -3,15 +3,13 @@ mod kv;
 mod parser;
 mod request;
 
-use std::io::{BufReader, BufWriter, Read, Write};
+use std::io::{BufWriter, Write};
 use std::net::{TcpListener, TcpStream};
 use threadpool::ThreadPool;
 use phf::phf_map;
 
 use datatype::DataType;
 use request::Request;
-
-const BRSIZE: usize = 1024;
 
 struct Command<'a> {
 	function: fn(&Request) -> Result<DataType, &str>,
@@ -314,38 +312,10 @@ pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 
 fn handle_client(stream: TcpStream) {
 	println!("Accepted connection from: {}", stream.peer_addr().unwrap());
-	let mut buf: [u8; BRSIZE];
-	let mut nread: Result<usize, std::io::Error>;
-	let mut vbuf: Vec<u8> = Vec::new();
-	let mut reader: BufReader<&TcpStream> = BufReader::new(&stream);
 	let mut writer: BufWriter<&TcpStream> = BufWriter::new(&stream);
 	loop {
 		if let Err(_) = writer.flush() {return;}
-		loop {
-			buf = [0; BRSIZE];
-			nread = reader.read(&mut buf);
-			match nread {
-				Ok(n) => {
-					if 0 < n {vbuf.extend_from_slice(&buf);};
-					if buf.len() > n {break;}
-				},
-				Err(_) => return
-			}
-		};
-		let rawinput: String = match String::from_utf8(vbuf.clone()) {
-			Ok(s) => s,
-			Err(_) => {
-				if let Err(_) = write!(writer, "{}", DataType::err(
-					"ERR Invalid UTF-8 sequence in input."
-				)) {
-					return;
-				} else {
-					continue;
-				};
-			}
-		};
-		vbuf.clear();
-		match parser::parse(&rawinput) {
+		match parser::parse(&stream) {
 			Ok(req) => {
 				match CMDS.get(req.command.as_str()) {
 					Some(cmd) => {

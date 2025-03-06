@@ -75,7 +75,7 @@ impl fmt::Display for DataType {
 			DataType::Hashset(h) => {
 				write!(f, "*{}\n", h.len() * 2)?;
 				for (k, v) in h.iter() {
-					write!(f, "{}{}", k, v);
+					let _ = write!(f, "{}{}", k, v);
 				}
 				Ok(())
 			},
