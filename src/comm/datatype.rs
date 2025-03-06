@@ -65,35 +65,35 @@ impl fmt::Display for DataType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			DataType::BigInteger(n) =>
-				write!(f, "({}\n", n),
+				write!(f, "({}\r\n", n),
 			DataType::Boolean(b) =>
-				write!(f, "#{}\n", if *b {"t"} else {"f"}),
+				write!(f, "#{}\r\n", if *b {"t"} else {"f"}),
 			DataType::BulkError(s) =>
-				write!(f, "!{}\n{}\n", s.capacity(), s),
+				write!(f, "!{}\r\n{}\n", s.capacity(), s),
 			DataType::BulkString(s) =>
-				write!(f, "${}\n{}\n", s.capacity(), s),
+				write!(f, "${}\r\n{}\r\n", s.capacity(), s),
 			DataType::Hashset(h) => {
-				write!(f, "*{}\n", h.len() * 2)?;
+				write!(f, "*{}\r\n", h.len() * 2)?;
 				for (k, v) in h.iter() {
 					let _ = write!(f, "{}{}", k, v);
 				}
 				Ok(())
 			},
 			DataType::Integer(i) =>
-				write!(f, ":{}\n", i),
+				write!(f, ":{}\r\n", i),
 			DataType::List(l) => {
-				write!(f, "*{}\n", l.len())?;
+				write!(f, "*{}\r\n", l.len())?;
 				for e in l.iter() {
 					write!(f, "{}", e)?;
 				}
 				Ok(())
 			},
 			DataType::Null =>
-				write!(f, "_\n"),
+				write!(f, "_\r\n"),
 			DataType::SimpleError(s) =>
-				write!(f, "-{}\n", s),
+				write!(f, "-{}\r\n", s),
 			DataType::SimpleString(s) =>
-				write!(f, "+{}\n", s),
+				write!(f, "+{}\r\n", s),
 		}
 	}
 }
