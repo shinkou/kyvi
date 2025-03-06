@@ -3,13 +3,15 @@ mod kv;
 mod parser;
 mod request;
 
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use threadpool::ThreadPool;
 use phf::phf_map;
 
 use datatype::DataType;
 use request::Request;
+
+const BRSIZE: usize = 1024;
 
 struct Command<'a> {
 	function: fn(&Request) -> Result<DataType, &str>,
@@ -24,6 +26,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		syntax: "append KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
 		doc: "append value to the string stored at the key."
+	},
+	"client" => Command {
+		function: cmd_client,
+		syntax: "client SETINFO <LIB-NAME libname | LIB-VER libver>",
+		validation: |r| {3 == r.parameters.len()},
+		doc: "set client library information."
 	},
 	"decr" => Command {
 		function: cmd_decr,
@@ -305,52 +313,87 @@ pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 }
 
 fn handle_client(stream: TcpStream) {
-	let mut buf: String = String::new();
+	println!("Accepted connection from: {}", stream.peer_addr().unwrap());
+	let mut buf: [u8; BRSIZE];
+	let mut nread: Result<usize, std::io::Error>;
+	let mut vbuf: Vec<u8> = Vec::new();
 	let mut reader: BufReader<&TcpStream> = BufReader::new(&stream);
 	let mut writer: BufWriter<&TcpStream> = BufWriter::new(&stream);
 	loop {
-		buf.clear();
 		if let Err(_) = writer.flush() {return;}
-		if let Err(_) = reader.read_line(&mut buf) {return;}
-		let req = parser::parse(&buf);
-		match CMDS.get(req.command.as_str()) {
-			Some(cmd) => {
-				if (cmd.validation)(&req) {
-					if let Err(_) = write!(
+		loop {
+			buf = [0; BRSIZE];
+			nread = reader.read(&mut buf);
+			match nread {
+				Ok(n) => {
+					if 0 < n {vbuf.extend_from_slice(&buf);};
+					if buf.len() > n {break;}
+				},
+				Err(_) => return
+			}
+		};
+		let rawinput: String = match String::from_utf8(vbuf.clone()) {
+			Ok(s) => s,
+			Err(_) => {
+				if let Err(_) = write!(writer, "{}", DataType::err(
+					"ERR Invalid UTF-8 sequence in input."
+				)) {
+					return;
+				} else {
+					continue;
+				};
+			}
+		};
+		vbuf.clear();
+		match parser::parse(&rawinput) {
+			Ok(req) => {
+				match CMDS.get(req.command.as_str()) {
+					Some(cmd) => {
+						if (cmd.validation)(&req) {
+							if let Err(_) = write!(
+									writer,
+									"{}",
+									match (cmd.function)(&req) {
+										Ok(dt_v) => dt_v,
+										Err(e) => DataType::err(&e.to_string())
+									}
+								) {
+								return;
+							}
+							if cmd.function == cmd_quit {
+								let _ = writer.flush();
+								return;
+							}
+						} else if let Err(_) = write!(
+								writer,
+								"{}",
+								DataType::err(&format!(
+									"ERR correct syntax: \"{}\"",
+									cmd.syntax
+								))
+							) {
+							return;
+						}
+					},
+					None => if let Err(_) = write!(
 							writer,
 							"{}",
-							match (cmd.function)(&req) {
-								Ok(dt_v) => dt_v,
-								Err(e) => DataType::err(&e.to_string())
-							}
+							DataType::err(&format!(
+								"ERR unknown command \"{}\"",
+								req.command
+							))
 						) {
-						return;
-					}
-					if cmd.function == cmd_quit {
-						let _ = writer.flush();
-						return;
-					}
-				} else if let Err(_) = write!(
-						writer,
-						"{}",
-						DataType::err(&format!(
-							"ERR correct syntax: \"{}\"",
-							cmd.syntax
-						))
-					) {
-					return;
+							return;
+						}
 				}
 			},
-			None => if let Err(_) = write!(
-					writer,
-					"{}",
-					DataType::err(&format!(
-						"ERR unknown command \"{}\"",
-						req.command
-					))
-				) {
-					return;
-				}
+			Err(e) => if let Err(_) = write!(
+				writer,
+				"{}",
+				DataType::err(e)
+			) {
+				return;
+			}
 		}
 	}
 }
@@ -360,6 +403,11 @@ fn cmd_append(req: &Request) -> Result<DataType, &str> {
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
+}
+
+fn cmd_client(_req: &Request) -> Result<DataType, &str> {
+	// TODO:shinkou:2025-03-06:Implement client command
+	Ok(DataType::str("OK"))
 }
 
 fn cmd_decr(req: &Request) -> Result<DataType, &str> {
