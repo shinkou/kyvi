@@ -330,7 +330,7 @@ fn handle_client(stream: TcpStream) {
 								) {
 								return;
 							}
-							if cmd.function == cmd_quit {
+							if "quit" == req.command.as_str() {
 								let _ = writer.flush();
 								return;
 							}
