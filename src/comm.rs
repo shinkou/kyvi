@@ -362,6 +362,7 @@ fn handle_client(stream: TcpStream) {
 				"{}",
 				DataType::err(e)
 			) {
+				println!("Error: {:?}", e);
 				return;
 			}
 		}

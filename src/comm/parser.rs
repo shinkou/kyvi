@@ -21,8 +21,15 @@ fn get_parameters(stream: &TcpStream) -> Result<Vec<String>, &str> {
 	let mut llen: usize = 0;
 	let mut slen: usize = 0;
 	let mut lcnt: usize = 0;
+	let mut sln: String = String::new();
 	let mut sbuf: String = String::new();
-	for line in (&mut reader).lines().map(|l| {l.unwrap()}) {
+	loop {
+		sln.clear();
+		let line = match (&mut reader).read_line(&mut sln) {
+			Ok(0) => return Err("ERR EOF reached"),
+			Ok(_) => sln.trim_end(),
+			Err(_) => return Err("ERR Connection error")
+		};
 		if 0 == line.len() && (sbuf.len() < slen || lcnt < llen) {
 			return Err("ERR Protocol error");
 		};
