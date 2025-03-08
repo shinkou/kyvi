@@ -304,13 +304,21 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_sismember,
 		syntax: "sismember KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "return if the value is a member of the set stored at key"
+		doc: "return if the specified value is a member of the set stored \
+			at key"
 	},
 	"smembers" => Command {
 		function: cmd_smembers,
 		syntax: "smembers KEY",
 		validation: |r| {1 == r.parameters.len()},
 		doc: "get all values in the set stored at key"
+	},
+	"smismember" => Command {
+		function: cmd_smismember,
+		syntax: "smismember KEY VALUE [ VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "return if the specified values are members of the set stored \
+			at key"
 	}
 };
 
@@ -685,4 +693,8 @@ fn cmd_sismember(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_smembers(req: &Request) -> Result<DataType, &str> {
 	kv::smembers(req.parameters.iter().nth(0).unwrap().as_str())
+}
+
+fn cmd_smismember(req: &Request) -> Result<DataType, &str> {
+	kv::smismember(&req.parameters[0], req.parameters[1..].to_vec())
 }

@@ -1013,6 +1013,27 @@ pub fn smembers(k: &str) -> Result<DataType, &str> {
 	}
 }
 
+pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(hset) => Ok(DataType::List(
+					vs.iter().map(|v| {DataType::Integer(
+						if hset.contains(&DataType::bulkStr(v)) {1} else {0}
+					)}).collect()
+				)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::List(
+			vs.iter().map(|_| {DataType::Integer(0)}).collect()
+		))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serial_test::serial;
@@ -1678,6 +1699,10 @@ mod tests {
 	#[serial]
 	fn plan8() {
 		assert_eq!(
+			scard("someset"),
+			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
 			sadd(
 				"someset",
 				vec![
@@ -1686,6 +1711,10 @@ mod tests {
 					"three".to_string()
 				]
 			),
+			Ok(DataType::Integer(3))
+		);
+		assert_eq!(
+			scard("someset"),
 			Ok(DataType::Integer(3))
 		);
 		assert_eq!(
@@ -1700,6 +1729,10 @@ mod tests {
 			Ok(DataType::Integer(2))
 		);
 		assert_eq!(
+			scard("someset"),
+			Ok(DataType::Integer(5))
+		);
+		assert_eq!(
 			sadd(
 				"someset",
 				vec![
@@ -1709,6 +1742,60 @@ mod tests {
 				]
 			),
 			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
+			smismember(
+				"nonexists",
+				vec![
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"four".to_string(),
+					"five".to_string()
+				]
+			),
+			Ok(DataType::List(vec![
+				DataType::Integer(0),
+				DataType::Integer(0),
+				DataType::Integer(0),
+				DataType::Integer(0),
+				DataType::Integer(0)
+			]))
+		);
+		assert_eq!(
+			smismember(
+				"someset",
+				vec![
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string(),
+					"four".to_string(),
+					"five".to_string()
+				]
+			),
+			Ok(DataType::List(vec![
+				DataType::Integer(1),
+				DataType::Integer(1),
+				DataType::Integer(1),
+				DataType::Integer(1),
+				DataType::Integer(1)
+			]))
+		);
+		assert_eq!(
+			scard("someset"),
+			Ok(DataType::Integer(5))
+		);
+		assert_eq!(
+			sismember("someset", "four"),
+			Ok(DataType::Integer(1))
+		);
+		assert_eq!(
+			sismember("someset", "deux"),
+			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
+			sismember("someset", "two"),
+			Ok(DataType::Integer(1))
 		);
 		assert_eq!(
 			del(&vec!["someset".to_string()]),
