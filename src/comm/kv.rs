@@ -960,9 +960,42 @@ pub fn sadd(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 	}
 }
 
+pub fn scard(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(hset) =>
+					Ok(DataType::Integer(hset.len() as i64)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Integer(0))
+	}
+}
+
 pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let _ = M.lock().unwrap().insert(String::from(k), DataType::bulkStr(v));
 	Ok(DataType::str("OK"))
+}
+
+pub fn sismember<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(hset) => Ok(DataType::Integer(
+					if hset.contains(&DataType::bulkStr(v)) {1} else {0}
+				)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Integer(0))
+	}
 }
 
 pub fn smembers(k: &str) -> Result<DataType, &str> {

@@ -247,7 +247,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_mget,
 		syntax: "mget KEY [ KEY ... ]",
 		validation: |r| {1 < r.parameters.len()},
-		doc: "obtain values stored at specified keys."
+		doc: "get values stored at specified keys."
 	},
 	"mset" => Command {
 		function: cmd_mset,
@@ -288,11 +288,23 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 < r.parameters.len()},
 		doc: "add specified values to the set stored at key"
 	},
+	"scard" => Command {
+		function: cmd_scard,
+		syntax: "scard KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "get the cardinality of the set stored at key"
+	},
 	"set" => Command {
 		function: cmd_set,
 		syntax: "set KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
 		doc: "record the given key value pair."
+	},
+	"sismember" => Command {
+		function: cmd_sismember,
+		syntax: "sismember KEY VALUE",
+		validation: |r| {2 == r.parameters.len()},
+		doc: "return if the value is a member of the set stored at key"
 	},
 	"smembers" => Command {
 		function: cmd_smembers,
@@ -653,8 +665,19 @@ fn cmd_sadd(req: &Request) -> Result<DataType, &str> {
 	kv::sadd(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
+fn cmd_scard(req: &Request) -> Result<DataType, &str> {
+	kv::scard(req.parameters.iter().nth(0).unwrap().as_str())
+}
+
 fn cmd_set(req: &Request) -> Result<DataType, &str> {
 	kv::set(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str()
+	)
+}
+
+fn cmd_sismember(req: &Request) -> Result<DataType, &str> {
+	kv::sismember(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
