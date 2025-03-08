@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Mutex;
 
 use regex::Regex;
@@ -933,9 +933,51 @@ pub fn rpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
 	}
 }
 
+pub fn sadd(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(s) => Ok(DataType::Integer(
+					vs.iter().map(|v|{
+						if s.insert(DataType::bulkStr(v)){1}else{0}
+					}).sum()
+				)),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => {
+			let mut s: HashSet<DataType> = HashSet::new();
+			let i = vs.iter().map(|v|{
+				if s.insert(DataType::bulkStr(v)){1}else{0}
+			}).sum();
+			m.insert(String::from(k), DataType::HashSet(s.clone()));
+			Ok(DataType::Integer(i))
+		}
+	}
+}
+
 pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let _ = M.lock().unwrap().insert(String::from(k), DataType::bulkStr(v));
 	Ok(DataType::str("OK"))
+}
+
+pub fn smembers(k: &str) -> Result<DataType, &str> {
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(_hset) => Ok(data.clone()),
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
+	}
 }
 
 #[cfg(test)]
@@ -1595,6 +1637,48 @@ mod tests {
 		);
 		assert_eq!(
 			del(&vec!["somekey".to_string()]),
+			Ok(DataType::Integer(1))
+		);
+	}
+
+	#[test]
+	#[serial]
+	fn plan8() {
+		assert_eq!(
+			sadd(
+				"someset",
+				vec![
+					"one".to_string(),
+					"two".to_string(),
+					"three".to_string()
+				]
+			),
+			Ok(DataType::Integer(3))
+		);
+		assert_eq!(
+			sadd(
+				"someset",
+				vec![
+					"three".to_string(),
+					"four".to_string(),
+					"five".to_string()
+				]
+			),
+			Ok(DataType::Integer(2))
+		);
+		assert_eq!(
+			sadd(
+				"someset",
+				vec![
+					"one".to_string(),
+					"three".to_string(),
+					"five".to_string()
+				]
+			),
+			Ok(DataType::Integer(0))
+		);
+		assert_eq!(
+			del(&vec!["someset".to_string()]),
 			Ok(DataType::Integer(1))
 		);
 	}

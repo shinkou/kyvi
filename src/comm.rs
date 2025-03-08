@@ -282,11 +282,23 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "append all the specified values at the end of the list \
 			stored at key"
 	},
+	"sadd" => Command {
+		function: cmd_sadd,
+		syntax: "sadd KEY VALUE [ VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "add specified values to the set stored at key"
+	},
 	"set" => Command {
 		function: cmd_set,
 		syntax: "set KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
 		doc: "record the given key value pair."
+	},
+	"smembers" => Command {
+		function: cmd_smembers,
+		syntax: "smembers KEY",
+		validation: |r| {1 == r.parameters.len()},
+		doc: "get all values in the set stored at key"
 	}
 };
 
@@ -637,9 +649,17 @@ fn cmd_rpushx(req: &Request) -> Result<DataType, &str> {
 	kv::rpush(&req.parameters[0], req.parameters[1..].to_vec(), &true)
 }
 
+fn cmd_sadd(req: &Request) -> Result<DataType, &str> {
+	kv::sadd(&req.parameters[0], req.parameters[1..].to_vec())
+}
+
 fn cmd_set(req: &Request) -> Result<DataType, &str> {
 	kv::set(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
+}
+
+fn cmd_smembers(req: &Request) -> Result<DataType, &str> {
+	kv::smembers(req.parameters.iter().nth(0).unwrap().as_str())
 }
