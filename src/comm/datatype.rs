@@ -9,6 +9,7 @@ pub enum DataType {
 	Boolean(bool),
 	BulkError(String),
 	BulkString(String),
+	EmptyList,
 	HashMap(
 		#[derivative(Hash="ignore")]
 		HashMap<DataType, DataType>
@@ -33,6 +34,7 @@ impl DataType {
 			DataType::BulkError(s) | DataType::BulkString(s) |
 				DataType::SimpleError(s) | DataType::SimpleString(s) =>
 				s.capacity(),
+			DataType::EmptyList => 0usize,
 			DataType::HashMap(h) =>
 				h.len() + h.iter().map(
 					|(k, v)|{k.capacity() + v.capacity()}
@@ -82,6 +84,7 @@ impl fmt::Display for DataType {
 				write!(f, "!{}\r\n{}\n", s.capacity(), s),
 			DataType::BulkString(s) =>
 				write!(f, "${}\r\n{}\r\n", s.capacity(), s),
+			DataType::EmptyList => write!(f, "*0\r\n"),
 			DataType::HashMap(h) => {
 				write!(f, "*{}\r\n", h.len() * 2)?;
 				for (k, v) in h.iter() {
@@ -105,8 +108,7 @@ impl fmt::Display for DataType {
 				}
 				Ok(())
 			},
-			DataType::Null =>
-				write!(f, "_\r\n"),
+			DataType::Null => write!(f, "$-1\r\n"),
 			DataType::SimpleError(s) =>
 				write!(f, "-{}\r\n", s),
 			DataType::SimpleString(s) =>

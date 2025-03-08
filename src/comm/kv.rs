@@ -1009,7 +1009,7 @@ pub fn smembers(k: &str) -> Result<DataType, &str> {
 				)
 			}
 		},
-		None => Ok(DataType::Null)
+		None => Ok(DataType::EmptyList)
 	}
 }
 
