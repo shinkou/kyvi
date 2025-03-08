@@ -154,7 +154,7 @@ pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	match m.get_mut(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) => {
+				DataType::HashMap(hmap) => {
 					let cnt = fs.iter().map(|f| {
 						match hmap.remove(&DataType::bulkStr(&f)) {
 							Some(_) => 1i64,
@@ -177,7 +177,7 @@ pub fn hexists<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) => {
+				DataType::HashMap(hmap) => {
 					Ok(DataType::Integer(
 						if hmap.contains_key(&DataType::bulkStr(f)) {
 							1i64
@@ -200,7 +200,7 @@ pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(h) => match h.get(&DataType::bulkStr(f)) {
+				DataType::HashMap(h) => match h.get(&DataType::bulkStr(f)) {
 					Some(v) => Ok(v.clone()),
 					None => Ok(DataType::Null)
 				},
@@ -218,7 +218,7 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(_hmap) => Ok(data.clone()),
+				DataType::HashMap(_hmap) => Ok(data.clone()),
 				_ => Err(
 					"WRONGTYPE Operation against a key holding the wrong \
 					kind of value"
@@ -239,7 +239,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 	match m.get_mut(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) => {
+				DataType::HashMap(hmap) => {
 					match hmap.get(&DataType::bulkStr(f)) {
 						Some(DataType::BulkString(somestr)) => {
 							match somestr.parse::<i64>() {
@@ -291,7 +291,7 @@ pub fn hkeys(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) =>
+				DataType::HashMap(hmap) =>
 					Ok(DataType::List(
 						hmap.keys().cloned().collect::<Vec<_>>()
 					)),
@@ -309,7 +309,7 @@ pub fn hlen(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) =>
+				DataType::HashMap(hmap) =>
 					Ok(DataType::Integer(hmap.len().try_into().unwrap())),
 				_ =>
 					Err(
@@ -326,7 +326,7 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) => Ok(DataType::List(
+				DataType::HashMap(hmap) => Ok(DataType::List(
 					fs.iter().map(|f| {
 						match hmap.get(&DataType::bulkStr(&f)) {
 							Some(somedtype) => somedtype.clone(),
@@ -355,7 +355,7 @@ pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
 	match m.get_mut(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) => {
+				DataType::HashMap(hmap) => {
 					let mut cnt: i64 = 0;
 					match nx {
 						true => {
@@ -403,7 +403,7 @@ pub fn hvals(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(k) {
 		Some(data) => {
 			match data {
-				DataType::Hashset(hmap) =>
+				DataType::HashMap(hmap) =>
 					Ok(DataType::List(
 						hmap.values().cloned().collect::<Vec<_>>()
 					)),

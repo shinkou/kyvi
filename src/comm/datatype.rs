@@ -9,7 +9,7 @@ pub enum DataType {
 	Boolean(bool),
 	BulkError(String),
 	BulkString(String),
-	Hashset(
+	HashMap(
 		#[derivative(Hash="ignore")]
 		HashMap<DataType, DataType>
 	),
@@ -29,7 +29,7 @@ impl DataType {
 			DataType::BulkError(s) | DataType::BulkString(s) |
 				DataType::SimpleError(s) | DataType::SimpleString(s) =>
 				s.capacity(),
-			DataType::Hashset(h) =>
+			DataType::HashMap(h) =>
 				h.len() + h.iter().map(
 					|(k, v)|{k.capacity() + v.capacity()}
 				).sum::<usize>(),
@@ -53,7 +53,7 @@ impl DataType {
 	}
 
 	pub fn hset(m: &HashMap<DataType, DataType>) -> DataType {
-		DataType::Hashset(m.clone())
+		DataType::HashMap(m.clone())
 	}
 
 	pub fn str(s: &str) -> DataType {
@@ -72,7 +72,7 @@ impl fmt::Display for DataType {
 				write!(f, "!{}\r\n{}\n", s.capacity(), s),
 			DataType::BulkString(s) =>
 				write!(f, "${}\r\n{}\r\n", s.capacity(), s),
-			DataType::Hashset(h) => {
+			DataType::HashMap(h) => {
 				write!(f, "*{}\r\n", h.len() * 2)?;
 				for (k, v) in h.iter() {
 					let _ = write!(f, "{}{}", k, v);
