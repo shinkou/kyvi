@@ -558,7 +558,7 @@ fn plan7() {
 	);
 	assert_eq!(
 		lrange("nonkey", "0", "-1"),
-		Ok(DataType::Null)
+		Ok(DataType::EmptyList)
 	);
 	assert_eq!(
 		lpush(
@@ -574,7 +574,7 @@ fn plan7() {
 	);
 	assert_eq!(
 		lrange("nonkey", "0", "-1"),
-		Ok(DataType::Null)
+		Ok(DataType::EmptyList)
 	);
 	assert_eq!(
 		lrem("somekey", "0", "two"),

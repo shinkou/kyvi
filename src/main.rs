@@ -6,7 +6,9 @@ fn main() {
 		Ok((to_quit, bindaddr, thpoolsize)) => {
 			if !to_quit {
 				println!("Listening on \"{bindaddr}\"...");
-				let _ = comm::listen_to(&bindaddr, thpoolsize);
+				if let Err(e) = comm::listen_to(&bindaddr, thpoolsize) {
+					eprintln!("{:?}", e.to_string());
+				}
 			}
 		},
 		Err(e) => eprintln!("{e}")

@@ -225,7 +225,7 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 				)
 			}
 		},
-		None => Ok(DataType::Null)
+		None => Ok(DataType::EmptyList)
 	}
 }
 
@@ -695,7 +695,7 @@ pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
 				)
 			}
 		},
-		None => Ok(DataType::Null)
+		None => Ok(DataType::EmptyList)
 	}
 }
 
