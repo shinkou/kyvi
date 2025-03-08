@@ -52,7 +52,7 @@ impl DataType {
 		DataType::SimpleError(s.to_string())
 	}
 
-	pub fn hset(m: &HashMap<DataType, DataType>) -> DataType {
+	pub fn hmap(m: &HashMap<DataType, DataType>) -> DataType {
 		DataType::HashMap(m.clone())
 	}
 

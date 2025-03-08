@@ -281,7 +281,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 				DataType::bulkStr(f),
 				DataType::BulkString(someint.to_string())
 			);
-			m.insert(String::from(k), DataType::hset(&somehmap));
+			m.insert(String::from(k), DataType::hmap(&somehmap));
 			Ok(DataType::Integer(someint))
 		}
 	}
@@ -392,7 +392,7 @@ pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
 				DataType::bulkStr(&x[0]),
 				DataType::bulkStr(&x[1])
 			);});
-			let hmap2save = DataType::hset(&somehmap);
+			let hmap2save = DataType::hmap(&somehmap);
 			m.insert(String::from(k), hmap2save);
 			Ok(DataType::Integer(somehmap.len().try_into().unwrap()))
 		}
