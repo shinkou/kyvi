@@ -334,6 +334,20 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "return if the specified values are members of the set stored \
 			at key"
 	},
+	"sinter" => Command {
+		function: cmd_sinter,
+		syntax: "sinter KEY [ KEY ... ]",
+		validation: |r| {0 < r.parameters.len()},
+		doc: "get values that exist in all of the sets stored at the given \
+			keys"
+	},
+	"sinterstore" => Command {
+		function: cmd_sinterstore,
+		syntax: "sinter DESTINATION KEY [ KEY ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "get values that exist in all of the sets stored at the given \
+			keys and store them in a new set stored at the destination"
+	},
 	"srandmember" => Command {
 		function: cmd_srandmember,
 		syntax: "srandmember KEY [ COUNT ]",
@@ -729,6 +743,21 @@ fn cmd_smembers(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_smismember(req: &Request) -> Result<DataType, &str> {
 	kv::smismember(&req.parameters[0], req.parameters[1..].to_vec())
+}
+
+fn cmd_sinter(req: &Request) -> Result<DataType, &str> {
+	kv::sinter(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters[1..].to_vec()
+	)
+}
+
+fn cmd_sinterstore(req: &Request) -> Result<DataType, &str> {
+	kv::sinterstore(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters[2..].to_vec()
+	)
 }
 
 fn cmd_srandmember(req: &Request) -> Result<DataType, &str> {

@@ -677,7 +677,6 @@ fn plan8() {
 	);
 	assert!(matches!(smembers("someset"), Ok(DataType::HashSet(_))));
 	if let Ok(DataType::HashSet(s)) = smembers("someset") {
-		println!("{:?}", s);
 		let v = vec![
 			DataType::bulkStr("one"),
 			DataType::bulkStr("two"),
@@ -883,6 +882,35 @@ fn plan8() {
 	if let Ok(DataType::HashSet(s)) = smembers("newset") {
 		let v = vec![
 			DataType::bulkStr("four")
+		];
+		assert_eq!(s.len(), 1usize);
+		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);
+	}
+	assert_eq!(
+		sinter(
+			"someset",
+			vec![
+				"anotherset".to_string(),
+				"yetanotherset".to_string()
+			]
+		),
+		Ok(DataType::List(vec![DataType::bulkStr("one")]))
+	);
+	assert_eq!(
+		sinterstore(
+			"newset",
+			"someset",
+			vec![
+				"anotherset".to_string(),
+				"yetanotherset".to_string()
+			]
+		),
+		Ok(DataType::Integer(1))
+	);
+	assert!(matches!(smembers("newset"), Ok(DataType::HashSet(_))));
+	if let Ok(DataType::HashSet(s)) = smembers("newset") {
+		let v = vec![
+			DataType::bulkStr("one")
 		];
 		assert_eq!(s.len(), 1usize);
 		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);

@@ -983,8 +983,7 @@ pub fn sdiff(k: &str, ks: Vec<String>) -> Result<DataType, &str> {
 		Some(data) => {
 			match data {
 				DataType::HashSet(hset) => {
-					let mut vs = hset.iter().map(|e| {e.clone()})
-						.collect::<Vec<_>>();
+					let mut vs = hset.iter().cloned().collect::<Vec<_>>();
 					ks.iter().for_each(|k2| {
 						match m.get(k2) {
 							Some(DataType::HashSet(hset2)) => {
@@ -1014,7 +1013,7 @@ pub fn sdiffstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 		Some(data) => {
 			match data {
 				DataType::HashSet(hset) => {
-					let mut vs = hset.iter().map(|e| {e.clone()})
+					let mut vs = hset.iter().cloned()
 						.collect::<HashSet<_>>();
 					ks.iter().for_each(|k2| {
 						match m.get(k2) {
@@ -1043,6 +1042,64 @@ pub fn sdiffstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let _ = M.lock().unwrap().insert(String::from(k), DataType::bulkStr(v));
 	Ok(DataType::str("OK"))
+}
+
+pub fn sinter(k: &str, ks: Vec<String>) -> Result<DataType, &str> {
+	let m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(hset) => {
+					let mut vs = hset.iter().cloned().collect::<Vec<_>>();
+					ks.iter().for_each(|k2| {
+						match m.get(k2) {
+							Some(DataType::HashSet(hset2)) =>
+								vs.retain(|e| {hset2.contains(&e)}),
+							_ => {}
+						}
+					});
+					Ok(DataType::List(vs))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::EmptyList)
+	}
+}
+
+pub fn sinterstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
+	-> Result<DataType, &'a str> {
+	let mut m = M.lock().unwrap();
+	match m.get(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(hset) => {
+					let mut vs = hset.iter().cloned()
+						.collect::<HashSet<_>>();
+					ks.iter().for_each(|k2| {
+						match m.get(k2) {
+							Some(DataType::HashSet(hset2)) =>
+								vs.retain(|e| {hset2.contains(&e)}),
+							_ => {}
+						}
+					});
+					m.insert(
+						String::from(dst),
+						DataType::HashSet(vs.clone())
+					);
+					Ok(DataType::Integer(vs.len() as i64))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Integer(0))
+	}
 }
 
 pub fn sismember<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
