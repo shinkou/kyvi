@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Mutex;
 
@@ -1031,6 +1032,57 @@ pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 		None => Ok(DataType::List(
 			vs.iter().map(|_| {DataType::Integer(0)}).collect()
 		))
+	}
+}
+
+pub fn srandmember<'a>(k: &'a str, c: &'a str)
+	-> Result<DataType, &'a str> {
+	let i = match c.parse::<i64>() {
+		Ok(n) => n,
+		Err(_) => return Err("ERR Number must be an integer")
+	};
+	match M.lock().unwrap().get(k) {
+		Some(data) => {
+			match data {
+				DataType::HashSet(hset) => {
+					let h = hset.iter().map(|e|{e.clone()})
+						.collect::<Vec<_>>();
+					let cnt: usize = if (h.len() as i64) < i {
+						h.len()
+					} else if 0 <= i {
+						i as usize
+					} else {
+						(-1 * i) as usize
+					};
+					let mut idxs: Vec<usize> = Vec::new();
+					let mut rng = rand::rng();
+					loop {
+						(0..cnt).for_each(|_| {idxs.push(
+							rng.random_range(0..h.len())
+						);});
+						if 0 < i {
+							idxs.sort();
+							idxs.dedup();
+						};
+						if cnt <= idxs.len() {
+							if cnt < idxs.len() {
+								idxs.truncate(cnt);
+							}
+							break;
+						}
+					}
+					Ok(DataType::List(
+						idxs.iter().map(|&idx|{h.get(idx).unwrap().clone()})
+							.collect::<Vec<_>>()
+					))
+				},
+				_ => Err(
+					"WRONGTYPE Operation against a key holding the wrong \
+					kind of value"
+				)
+			}
+		},
+		None => Ok(DataType::Null)
 	}
 }
 

@@ -319,6 +319,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 < r.parameters.len()},
 		doc: "return if the specified values are members of the set stored \
 			at key"
+	},
+	"srandmember" => Command {
+		function: cmd_srandmember,
+		syntax: "srandmember KEY [ COUNT ]",
+		validation: |r| {0 < r.parameters.len()},
+		doc: "get a number of random members from the set stored at key"
 	}
 };
 
@@ -697,4 +703,15 @@ fn cmd_smembers(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_smismember(req: &Request) -> Result<DataType, &str> {
 	kv::smismember(&req.parameters[0], req.parameters[1..].to_vec())
+}
+
+fn cmd_srandmember(req: &Request) -> Result<DataType, &str> {
+	kv::srandmember(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		if 1 < req.parameters.len() {
+			req.parameters.iter().nth(1).unwrap().as_str()
+		} else {
+			"1"
+		}
+	)
 }

@@ -675,6 +675,16 @@ fn plan8() {
 		),
 		Ok(DataType::Integer(3))
 	);
+	assert!(matches!(smembers("someset"), Ok(DataType::HashSet(s))));
+	if let Ok(DataType::List(s)) = smembers("someset") {
+		let v = vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("two"),
+			DataType::bulkStr("three")
+		];
+		assert_eq!(s.len(), 3usize);
+		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);
+	}
 	assert_eq!(
 		scard("someset"),
 		Ok(DataType::Integer(3))
@@ -705,6 +715,18 @@ fn plan8() {
 		),
 		Ok(DataType::Integer(0))
 	);
+	assert!(matches!(smembers("someset"), Ok(DataType::HashSet(s))));
+	if let Ok(DataType::List(s)) = smembers("someset") {
+		let v = vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("two"),
+			DataType::bulkStr("three"),
+			DataType::bulkStr("four"),
+			DataType::bulkStr("five")
+		];
+		assert_eq!(s.len(), 5usize);
+		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);
+	}
 	assert_eq!(
 		smismember(
 			"nonexists",
@@ -759,6 +781,59 @@ fn plan8() {
 		sismember("someset", "two"),
 		Ok(DataType::Integer(1))
 	);
+	assert!(matches!(srandmember("someset", "5"), Ok(DataType::List(l))));
+	if let Ok(DataType::List(l)) = srandmember("someset", "5") {
+		let v = vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("two"),
+			DataType::bulkStr("three"),
+			DataType::bulkStr("four"),
+			DataType::bulkStr("five")
+		];
+		assert_eq!(l.len(), 5usize);
+		assert_eq!(v.iter().all(|e|{l.contains(e)}), true);
+	}
+	assert!(matches!(srandmember("someset", "6"), Ok(DataType::List(l))));
+	if let Ok(DataType::List(l)) = srandmember("someset", "6") {
+		let v = vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("two"),
+			DataType::bulkStr("three"),
+			DataType::bulkStr("four"),
+			DataType::bulkStr("five")
+		];
+		assert_eq!(l.len(), 5usize);
+		assert_eq!(v.iter().all(|e|{l.contains(e)}), true);
+	}
+	assert!(matches!(srandmember("someset", "-4"), Ok(DataType::List(l))));
+	if let Ok(DataType::List(l)) = srandmember("someset", "-4") {
+		let v = vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("two"),
+			DataType::bulkStr("three"),
+			DataType::bulkStr("four"),
+			DataType::bulkStr("five")
+		];
+		assert_eq!(l.len(), 4usize);
+		assert_eq!(l.iter().all(|e|{v.contains(e)}), true);
+	}
+	assert!(matches!(srandmember("someset", "-6"), Ok(DataType::List(l))));
+	if let Ok(DataType::List(l)) = srandmember("someset", "-6") {
+		let v = vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("two"),
+			DataType::bulkStr("three"),
+			DataType::bulkStr("four"),
+			DataType::bulkStr("five")
+		];
+		assert_eq!(l.len(), 6usize);
+		assert_eq!(l.iter().all(|e|{v.contains(e)}), true);
+	}
+	assert!(matches!(srandmember("someset", "0"), Ok(DataType::List(l))));
+	if let Ok(DataType::List(l)) = srandmember("someset", "0") {
+		assert_eq!(l.len(), 0usize);
+	}
+	assert_eq!(srandmember("nonexists", "5"), Ok(DataType::Null));
 	assert_eq!(
 		del(&vec!["someset".to_string()]),
 		Ok(DataType::Integer(1))
