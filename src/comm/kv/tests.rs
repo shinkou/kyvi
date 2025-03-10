@@ -857,20 +857,43 @@ fn plan8() {
 		Ok(DataType::Integer(2))
 	);
 	assert_eq!(
-		sdiff("someset", vec![
-			"anotherset".to_string(),
-			"yetanotherset".to_string()
-		]),
+		sdiff(
+			"someset",
+			vec![
+				"anotherset".to_string(),
+				"yetanotherset".to_string()
+			]
+		),
 		Ok(DataType::List(vec![
 			DataType::bulkStr("four")
 		]))
 	);
 	assert_eq!(
+		sdiffstore(
+			"newset",
+			"someset",
+			vec![
+				"anotherset".to_string(),
+				"yetanotherset".to_string()
+			]
+		),
+		Ok(DataType::Integer(1))
+	);
+	assert!(matches!(smembers("newset"), Ok(DataType::HashSet(_))));
+	if let Ok(DataType::HashSet(s)) = smembers("newset") {
+		let v = vec![
+			DataType::bulkStr("four")
+		];
+		assert_eq!(s.len(), 1usize);
+		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);
+	}
+	assert_eq!(
 		del(&vec![
 			"someset".to_string(),
 			"anotherset".to_string(),
-			"yetanotherset".to_string()
+			"yetanotherset".to_string(),
+			"newset".to_string()
 		]),
-		Ok(DataType::Integer(3))
+		Ok(DataType::Integer(4))
 	);
 }

@@ -297,9 +297,16 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 	"sdiff" => Command {
 		function: cmd_sdiff,
 		syntax: "sdiff KEY [ KEY ... ]",
-		validation: |r| {1 <= r.parameters.len()},
+		validation: |r| {0 < r.parameters.len()},
 		doc: "get members that only exist in the set stored at the first \
 			key"
+	},
+	"sdiffstore" => Command {
+		function: cmd_sdiffstore,
+		syntax: "sdiffstore DESTINATION KEY [ KEY ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "get members that only exist in the set stored at the first \
+			key and store them in a new set stored at the destination"
 	},
 	"set" => Command {
 		function: cmd_set,
@@ -692,6 +699,14 @@ fn cmd_scard(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_sdiff(req: &Request) -> Result<DataType, &str> {
 	kv::sdiff(&req.parameters[0], req.parameters[1..].to_vec())
+}
+
+fn cmd_sdiffstore(req: &Request) -> Result<DataType, &str> {
+	kv::sdiffstore(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters[2..].to_vec()
+	)
 }
 
 fn cmd_set(req: &Request) -> Result<DataType, &str> {
