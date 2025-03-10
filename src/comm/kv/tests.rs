@@ -836,7 +836,41 @@ fn plan8() {
 	}
 	assert_eq!(srandmember("nonexists", "5"), Ok(DataType::Null));
 	assert_eq!(
-		del(&vec!["someset".to_string()]),
-		Ok(DataType::Integer(1))
+		sadd(
+			"anotherset",
+			vec![
+				"one".to_string(),
+				"three".to_string(),
+				"five".to_string()
+			]
+		),
+		Ok(DataType::Integer(3))
+	);
+	assert_eq!(
+		sadd(
+			"yetanotherset",
+			vec![
+				"one".to_string(),
+				"two".to_string()
+			]
+		),
+		Ok(DataType::Integer(2))
+	);
+	assert_eq!(
+		sdiff("someset", vec![
+			"anotherset".to_string(),
+			"yetanotherset".to_string()
+		]),
+		Ok(DataType::List(vec![
+			DataType::bulkStr("four")
+		]))
+	);
+	assert_eq!(
+		del(&vec![
+			"someset".to_string(),
+			"anotherset".to_string(),
+			"yetanotherset".to_string()
+		]),
+		Ok(DataType::Integer(3))
 	);
 }

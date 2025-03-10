@@ -294,6 +294,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		validation: |r| {1 == r.parameters.len()},
 		doc: "get the cardinality of the set stored at key"
 	},
+	"sdiff" => Command {
+		function: cmd_sdiff,
+		syntax: "sdiff KEY [ KEY ... ]",
+		validation: |r| {1 <= r.parameters.len()},
+		doc: "get members that only exist in the set stored at the first \
+			key"
+	},
 	"set" => Command {
 		function: cmd_set,
 		syntax: "set KEY VALUE",
@@ -681,6 +688,10 @@ fn cmd_sadd(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_scard(req: &Request) -> Result<DataType, &str> {
 	kv::scard(req.parameters.iter().nth(0).unwrap().as_str())
+}
+
+fn cmd_sdiff(req: &Request) -> Result<DataType, &str> {
+	kv::sdiff(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
 fn cmd_set(req: &Request) -> Result<DataType, &str> {
