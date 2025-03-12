@@ -1,12 +1,11 @@
 use super::Request;
 
-use std::io::{BufRead, BufReader};
-use std::net::TcpStream;
+use std::io::{BufRead, BufReader, Read};
 
 const EMPTY_STRING: String = String::new();
 
-pub fn parse(stream: &TcpStream) -> Result<Request, &str> {
-	let mut prms = get_parameters(stream)?;
+pub fn parse<R: Read>(r: R) -> Result<Request, &'static str> {
+	let mut prms = get_parameters(r)?;
 	let cmd = if 0 < prms.len() {
 		prms.remove(0).to_ascii_lowercase()
 	} else {
@@ -15,8 +14,8 @@ pub fn parse(stream: &TcpStream) -> Result<Request, &str> {
 	Ok(Request {command: cmd, parameters: prms})
 }
 
-fn get_parameters(stream: &TcpStream) -> Result<Vec<String>, &str> {
-	let mut reader: BufReader<&TcpStream> = BufReader::new(&stream);
+fn get_parameters<R: Read>(r: R) -> Result<Vec<String>, &'static str> {
+	let mut reader: BufReader<R> = BufReader::new(r);
 	let mut parameters: Vec<String> = Vec::new();
 	let mut llen: usize = 0;
 	let mut slen: usize = 0;
