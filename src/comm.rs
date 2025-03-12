@@ -372,6 +372,19 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		syntax: "srem KEY VALUE [ VALUE ... ]",
 		validation: |r| {1 < r.parameters.len()},
 		doc: "remove specified values from the set stored at key"
+	},
+	"sunion" => Command {
+		function: cmd_sunion,
+		syntax: "sunion KEY [ KEY ... ]",
+		validation: |r| {0 < r.parameters.len()},
+		doc: "get all unique values from all sets stored by the given keys"
+	},
+	"sunionstore" => Command {
+		function: cmd_sunionstore,
+		syntax: "sunionstore DESTINATION KEY [ KEY ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "get all unique values from all sets stored by the given \
+			keys and store them in a new set at destination"
 	}
 };
 
@@ -809,4 +822,12 @@ fn cmd_srandmember(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_srem(req: &Request) -> Result<DataType, &str> {
 	kv::srem(&req.parameters[0], req.parameters[1..].to_vec())
+}
+
+fn cmd_sunion(req: &Request) -> Result<DataType, &str> {
+	kv::sunion(req.parameters.clone())
+}
+
+fn cmd_sunionstore(req: &Request) -> Result<DataType, &str> {
+	kv::sunionstore(&req.parameters[0], req.parameters[1..].to_vec())
 }

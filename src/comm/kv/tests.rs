@@ -1023,3 +1023,128 @@ fn plan8() {
 		Ok(DataType::Integer(0))
 	);
 }
+
+#[test]
+#[serial]
+fn plan9() {
+	assert_eq!(
+		sadd(
+			"animals",
+			vec![
+				"aligator".to_string(),
+				"bear".to_string(),
+				"cat".to_string(),
+				"dog".to_string(),
+				"dove".to_string(),
+				"eagle".to_string()
+			]
+		),
+		Ok(DataType::Integer(6))
+	);
+	assert_eq!(
+		sadd(
+			"mammals",
+			vec![
+				"ape".to_string(),
+				"bear".to_string(),
+				"cat".to_string(),
+				"dog".to_string()
+			]
+		),
+		Ok(DataType::Integer(4))
+	);
+	assert_eq!(
+		sadd(
+			"birds",
+			vec![
+				"albatross".to_string(),
+				"bluebird".to_string(),
+				"cardinal".to_string(),
+				"dove".to_string(),
+				"eagle".to_string()
+			]
+		),
+		Ok(DataType::Integer(5))
+	);
+	assert!(matches!(
+		sunion(vec!["animals".to_string(), "mammals".to_string()]),
+		Ok(DataType::List(_))
+	));
+	if let Ok(DataType::List(l))
+		= sunion(vec!["animals".to_string(), "mammals".to_string()]) {
+		let vs = vec![
+			DataType::bulkStr("aligator"),
+			DataType::bulkStr("ape"),
+			DataType::bulkStr("bear"),
+			DataType::bulkStr("cat"),
+			DataType::bulkStr("dog"),
+			DataType::bulkStr("dove"),
+			DataType::bulkStr("eagle")
+		];
+		assert_eq!(l.len(), 7usize);
+		assert!(vs.iter().all(|v| {l.contains(v)}));
+	}
+	assert!(matches!(
+		sunion(vec![
+			"animals".to_string(),
+			"mammals".to_string(),
+			"birds".to_string()
+		]),
+		Ok(DataType::List(_))
+	));
+	if let Ok(DataType::List(l)) = sunion(vec![
+		"animals".to_string(),
+		"mammals".to_string(),
+		"birds".to_string()
+	]) {
+		let vs = vec![
+			DataType::bulkStr("aligator"),
+			DataType::bulkStr("albatross"),
+			DataType::bulkStr("ape"),
+			DataType::bulkStr("bear"),
+			DataType::bulkStr("bluebird"),
+			DataType::bulkStr("cardinal"),
+			DataType::bulkStr("cat"),
+			DataType::bulkStr("dog"),
+			DataType::bulkStr("dove"),
+			DataType::bulkStr("eagle")
+		];
+		assert_eq!(l.len(), 10usize);
+		assert!(vs.iter().all(|v| {l.contains(v)}));
+	}
+	assert_eq!(
+		sunionstore(
+			"creatures",
+			vec![
+				"animals".to_string(),
+				"mammals".to_string(),
+				"birds".to_string()
+			]
+		),
+		Ok(DataType::Integer(10))
+	);
+	if let Ok(DataType::HashSet(s)) = smembers("creatures") {
+		let v = vec![
+			DataType::bulkStr("aligator"),
+			DataType::bulkStr("albatross"),
+			DataType::bulkStr("ape"),
+			DataType::bulkStr("bear"),
+			DataType::bulkStr("bluebird"),
+			DataType::bulkStr("cardinal"),
+			DataType::bulkStr("cat"),
+			DataType::bulkStr("dog"),
+			DataType::bulkStr("dove"),
+			DataType::bulkStr("eagle")
+		];
+		assert_eq!(s.len(), 10usize);
+		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);
+	}
+	assert_eq!(
+		del(&vec![
+			"animals".to_string(),
+			"mammals".to_string(),
+			"birds".to_string()
+		]),
+		Ok(DataType::Integer(3))
+	);
+}

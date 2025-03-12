@@ -1131,5 +1131,38 @@ pub fn srem(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 	}
 }
 
+pub fn sunion(ks: Vec<String>) -> Result<DataType, &'static str> {
+	let m = M.lock().unwrap();
+	let mut wk: HashSet<DataType> = HashSet::new();
+	for k in ks {
+		if let Some(DataType::HashSet(hset)) = m.get(&k) {
+			wk = wk.union(hset).cloned().collect();
+		} else {
+			return Err(
+				"WRONGTYPE Operation against a key holding the wrong kind \
+				of value"
+			);
+		}
+	}
+	Ok(DataType::List(wk.iter().cloned().collect::<Vec<_>>()))
+}
+
+pub fn sunionstore(dst: &str, ks: Vec<String>) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	let mut wk: HashSet<DataType> = HashSet::new();
+	for k in ks {
+		if let Some(DataType::HashSet(hset)) = m.get(&k) {
+			wk = wk.union(hset).cloned().collect();
+		} else {
+			return Err(
+				"WRONGTYPE Operation against a key holding the wrong kind \
+				of value"
+			);
+		}
+	}
+	m.insert(String::from(dst), DataType::hset(&wk));
+	Ok(DataType::Integer(wk.len() as i64))
+}
+
 #[cfg(test)]
 mod tests;
