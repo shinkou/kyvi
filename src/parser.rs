@@ -387,10 +387,11 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 const UNITS: &'static[&'static str] = &["", "k", "M", "G", "T", "P", "E"];
 
 pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
+	let mut reader: BufReader<R> = BufReader::new(r);
 	let mut writer: BufWriter<W> = BufWriter::new(w);
 	loop {
 		if let Err(_) = writer.flush() {return;}
-		match parse(r) {
+		match parse(&mut reader) {
 			Ok(req) => {
 				match CMDS.get(req.command.as_str()) {
 					Some(cmd) => {
@@ -442,8 +443,8 @@ pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
 	}
 }
 
-fn parse<R: Read>(r: R) -> Result<Request, &'static str> {
-	let mut prms = get_parameters(r)?;
+fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Request, &str> {
+	let mut prms = get_parameters(reader)?;
 	let cmd = if 0 < prms.len() {
 		prms.remove(0).to_ascii_lowercase()
 	} else {
@@ -452,8 +453,8 @@ fn parse<R: Read>(r: R) -> Result<Request, &'static str> {
 	Ok(Request {command: cmd, parameters: prms})
 }
 
-fn get_parameters<R: Read>(r: R) -> Result<Vec<String>, &'static str> {
-	let mut reader: BufReader<R> = BufReader::new(r);
+fn get_parameters<R: Read>(reader: &mut BufReader<R>)
+	-> Result<Vec<String>, &str> {
 	let mut parameters: Vec<String> = Vec::new();
 	let mut llen: usize = 0;
 	let mut slen: usize = 0;
@@ -462,7 +463,7 @@ fn get_parameters<R: Read>(r: R) -> Result<Vec<String>, &'static str> {
 	let mut sbuf: String = String::new();
 	loop {
 		sln.clear();
-		let line = match (&mut reader).read_line(&mut sln) {
+		let line = match reader.read_line(&mut sln) {
 			Ok(0) => return Err("ERR EOF reached"),
 			Ok(_) => sln.trim_end(),
 			Err(_) => return Err("ERR Connection error")
