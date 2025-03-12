@@ -148,6 +148,7 @@ pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 					None => 0i64
 				}
 			}).sum::<i64>();
+			if 0 == hmap.len() {m.remove(k);}
 			Ok(DataType::Integer(cnt))
 		},
 		Some(_) => Err(
@@ -541,6 +542,7 @@ pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 					l.push(somevec.remove(0));
 				}
 			}
+			if 0 == somevec.len() {m.remove(k);}
 			Ok(DataType::List(l))
 		},
 		Some(_) => Err(
@@ -612,7 +614,8 @@ pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
 		Err(_) => return Err("ERR Count must be a number")
 	};
 	let dte = DataType::bulkStr(e);
-	match M.lock().unwrap().get_mut(k) {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
 		Some(DataType::List(l)) => {
 			let mut idxs: Vec<usize> = Vec::new();
 			if cnt > 0 {
@@ -644,6 +647,7 @@ pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
 			for i in (&idxs).iter().rev() {
 				let _ = l.remove(*i);
 			};
+			if 0 == l.len() {m.remove(k);}
 			Ok(DataType::Integer(idxs.len() as i64))
 		},
 		Some(_) => Err(
@@ -776,6 +780,7 @@ pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 					l.push(somevec.pop().unwrap());
 				}
 			}
+			if 0 == somevec.len() {m.remove(k);}
 			Ok(DataType::List(l))
 		},
 		Some(_) => Err(
@@ -885,10 +890,7 @@ pub fn sdiffstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 					vs.retain(|e| {!hset2.contains(&e)}),
 				_ => {}
 			}});
-			m.insert(
-				String::from(dst),
-				DataType::HashSet(vs.clone())
-			);
+			m.insert(String::from(dst), DataType::hset(&vs));
 			Ok(DataType::Integer(vs.len() as i64))
 		},
 		Some(_) => Err(
@@ -936,10 +938,7 @@ pub fn sinterstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 					vs.retain(|e| {hset2.contains(&e)}),
 				_ => {}
 			}});
-			m.insert(
-				String::from(dst),
-				DataType::HashSet(vs.clone())
-			);
+			m.insert(String::from(dst), DataType::hset(&vs));
 			Ok(DataType::Integer(vs.len() as i64))
 		},
 		Some(_) => Err(
@@ -972,6 +971,46 @@ pub fn smembers(k: &str) -> Result<DataType, &str> {
 			value"
 		),
 		None => Ok(DataType::EmptyList)
+	}
+}
+
+pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
+	-> Result<DataType, &'a str> {
+	let mut m = M.lock().unwrap();
+	let item = match m.get_mut(src) {
+		Some(DataType::HashSet(hset)) => {
+			let e = hset.take(&DataType::bulkStr(v));
+			if 0 == hset.len() {m.remove(src);}
+			e
+		},
+		Some(_) => return Err(
+			"WRONGTYPE Operation against a key holding the wrong kind of \
+			value"
+		),
+		None => return Ok(DataType::Integer(0))
+	};
+	match item {
+		Some(DataType::BulkString(_)) => match m.get_mut(dst) {
+			Some(DataType::HashSet(hset2)) => {
+				hset2.insert(item.unwrap());
+				Ok(DataType::Integer(1))
+			},
+			Some(_) => Err(
+				"WRONGTYPE Operation against a key holding the wrong kind of \
+				value"
+			),
+			None => {
+				let mut hset2: HashSet<DataType> = HashSet::new();
+				hset2.insert(item.unwrap());
+				m.insert(String::from(dst), DataType::hset(&hset2));
+				Ok(DataType::Integer(1))
+			}
+		},
+		Some(_) => Err(
+			"WRONGTYPE Operation against a key holding the wrong kind of \
+			value"
+		),
+		None => Ok(DataType::Integer(0))
 	}
 }
 

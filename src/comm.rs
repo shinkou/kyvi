@@ -334,6 +334,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "return if the specified values are members of the set stored \
 			at key"
 	},
+	"smove" => Command {
+		function: cmd_smove,
+		syntax: "smove SOURCE DESTINATION VALUE",
+		validation: |r| {3 == r.parameters.len()},
+		doc: "move value from the set at source to the set at destination"
+	},
 	"sinter" => Command {
 		function: cmd_sinter,
 		syntax: "sinter KEY [ KEY ... ]",
@@ -743,6 +749,14 @@ fn cmd_smembers(req: &Request) -> Result<DataType, &str> {
 
 fn cmd_smismember(req: &Request) -> Result<DataType, &str> {
 	kv::smismember(&req.parameters[0], req.parameters[1..].to_vec())
+}
+
+fn cmd_smove(req: &Request) -> Result<DataType, &str> {
+	kv::smove(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		req.parameters.iter().nth(1).unwrap().as_str(),
+		req.parameters.iter().nth(2).unwrap().as_str()
+	)
 }
 
 fn cmd_sinter(req: &Request) -> Result<DataType, &str> {

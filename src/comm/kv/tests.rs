@@ -418,7 +418,7 @@ fn plan7() {
 	);
 	assert_eq!(
 		lrange("somekey", "0", "-1"),
-		Ok(DataType::List(vec![]))
+		Ok(DataType::EmptyList)
 	);
 	assert_eq!(
 		rpush(
@@ -924,4 +924,31 @@ fn plan8() {
 		]),
 		Ok(DataType::Integer(4))
 	);
+	assert_eq!(
+		sadd(
+			"fruits",
+			vec![
+				"apple".to_string(),
+				"banana".to_string(),
+				"cherry".to_string()
+			]
+		),
+		Ok(DataType::Integer(3))
+	);
+	assert_eq!(smembers("meal"), Ok(DataType::EmptyList));
+	assert_eq!(smove("fruits", "meal", "banana"), Ok(DataType::Integer(1)));
+	assert_eq!(smove("fruits", "meal", "cherry"), Ok(DataType::Integer(1)));
+	assert_eq!(smove("fruits", "meal", "banana"), Ok(DataType::Integer(0)));
+	assert_eq!(smove("fruits", "meal", "apple"), Ok(DataType::Integer(1)));
+	assert_eq!(smembers("fruits"), Ok(DataType::EmptyList));
+	assert!(matches!(smembers("meal"), Ok(DataType::HashSet(_))));
+	if let Ok(DataType::HashSet(s)) = smembers("meal") {
+		let v = vec![
+			DataType::bulkStr("apple"),
+			DataType::bulkStr("banana"),
+			DataType::bulkStr("cherry")
+		];
+		assert_eq!(s.len(), 3usize);
+		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);
+	}
 }
