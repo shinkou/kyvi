@@ -951,4 +951,25 @@ fn plan8() {
 		assert_eq!(s.len(), 3usize);
 		assert_eq!(v.iter().all(|e|{s.contains(e)}), true);
 	}
+	assert_eq!(
+		sadd(
+			"meal",
+			vec![
+				"durian".to_string(),
+				"elderberry".to_string(),
+				"fig".to_string()
+			]
+		),
+		Ok(DataType::Integer(3))
+	);
+	assert!(matches!(spop("meal", "1", true), Ok(DataType::BulkString(_))));
+	assert!(matches!(spop("meal", "1", false), Ok(DataType::List(_))));
+	assert!(matches!(spop("meal", "2", true), Ok(DataType::List(_))));
+	assert_eq!(
+		del(&vec![
+			"fruits".to_string(),
+			"meal".to_string()
+		]),
+		Ok(DataType::Integer(1))
+	);
 }

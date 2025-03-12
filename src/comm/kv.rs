@@ -236,7 +236,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 					);
 					Ok(DataType::Integer(someint))
 				},
-				Some(_) => todo!() // this should never happen since we 
+				Some(_) => todo!() // this should never happen since we
 								   // only use DataType::BulkString for
 								   // keys
 			}
@@ -868,7 +868,7 @@ pub fn sdiff(k: &str, ks: Vec<String>) -> Result<DataType, &str> {
 					_ => {}
 				}
 			});
-			Ok(DataType::List(vs.iter().map(|e| {e.clone()}).collect()))
+			Ok(DataType::List(vs.iter().cloned().collect()))
 		},
 		Some(_) => Err(
 			"WRONGTYPE Operation against a key holding the wrong kind of \
@@ -1031,6 +1031,39 @@ pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 	}
 }
 
+pub fn spop<'a>(k: &'a str, n: &'a str, single_item: bool)
+	-> Result<DataType, &'a str> {
+	let popsize: usize = match n.parse() {
+		Ok(v) => v,
+		Err(_) => return Err("ERR Number must be a positive integer")
+	};
+	match M.lock().unwrap().get_mut(k) {
+		Some(DataType::HashSet(hset)) => {
+			let h: Vec<DataType> = hset.iter().cloned().collect();
+			let mut idxs: Vec<usize> = Vec::new();
+			let mut rng = rand::rng();
+			while idxs.len() < popsize {
+				idxs.push(rng.random_range(0..h.len()));
+				idxs.sort();
+				idxs.dedup();
+			}
+			let vs = idxs.iter().map(|&idx|{h.get(idx).unwrap().clone()})
+				.collect::<Vec<_>>();
+			hset.retain(|e| {!vs.contains(e)});
+			if single_item && 1 == vs.len() {
+				Ok(vs.first().unwrap().clone())
+			} else {
+				Ok(DataType::List(vs))
+			}
+		},
+		Some(_) => Err(
+			"WRONGTYPE Operation against a key holding the wrong kind of \
+			value"
+		),
+		None => Ok(DataType::EmptyList)
+	}
+}
+
 pub fn srandmember<'a>(k: &'a str, c: &'a str)
 	-> Result<DataType, &'a str> {
 	let i = match c.parse::<i64>() {
@@ -1039,8 +1072,7 @@ pub fn srandmember<'a>(k: &'a str, c: &'a str)
 	};
 	match M.lock().unwrap().get(k) {
 		Some(DataType::HashSet(hset)) => {
-			let h = hset.iter().map(|e|{e.clone()})
-				.collect::<Vec<_>>();
+			let h: Vec<DataType> = hset.iter().cloned().collect();
 			let cnt: usize = if (h.len() as i64) < i {
 				h.len()
 			} else if 0 <= i {

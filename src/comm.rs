@@ -354,6 +354,13 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		doc: "get values that exist in all of the sets stored at the given \
 			keys and store them in a new set stored at the destination"
 	},
+	"spop" => Command {
+		function: cmd_spop,
+		syntax: "spop KEY [ COUNT ]",
+		validation: |r| {0 < r.parameters.len()},
+		doc: "remove and return one or more random values from the set \
+			stored at key"
+	},
 	"srandmember" => Command {
 		function: cmd_srandmember,
 		syntax: "srandmember KEY [ COUNT ]",
@@ -771,6 +778,18 @@ fn cmd_sinterstore(req: &Request) -> Result<DataType, &str> {
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
 		req.parameters[2..].to_vec()
+	)
+}
+
+fn cmd_spop(req: &Request) -> Result<DataType, &str> {
+	kv::spop(
+		req.parameters.iter().nth(0).unwrap().as_str(),
+		if 1 < req.parameters.len() {
+			req.parameters.iter().nth(1).unwrap().as_str()
+		} else {
+			"1"
+		},
+		1 == req.parameters.len()
 	)
 }
 
