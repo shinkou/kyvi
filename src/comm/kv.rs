@@ -500,8 +500,7 @@ pub fn llen(k: &str) -> Result<DataType, &str> {
 	}
 }
 
-pub fn lpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
-	-> Result<DataType, &'a str> {
+pub fn lpush(k: &str, vs: Vec<String>, x: bool) -> Result<DataType, &str> {
 	let mut m = M.lock().unwrap();
 	match m.get_mut(k) {
 		Some(DataType::List(l)) => {
@@ -1107,6 +1106,28 @@ pub fn srandmember<'a>(k: &'a str, c: &'a str)
 			value"
 		),
 		None => Ok(DataType::Null)
+	}
+}
+
+pub fn srem(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
+		Some(DataType::HashSet(hset)) => {
+			let cnt = vs.iter().map(|s| {
+				if hset.remove(&DataType::bulkStr(&s)) {
+					1i64
+				} else {
+					0i64
+				}
+			}).sum::<i64>();
+			if 0 == hset.len() {m.remove(k);}
+			Ok(DataType::Integer(cnt))
+		},
+		Some(_) => Err(
+			"WRONGTYPE Operation against a key holding the wrong kind of \
+			value"
+		),
+		None => Ok(DataType::Integer(0))
 	}
 }
 

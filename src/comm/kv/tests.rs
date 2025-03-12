@@ -301,7 +301,7 @@ fn plan7() {
 				"val2".to_string(),
 				"val3".to_string()
 			],
-			&false
+			false
 		),
 		Ok(DataType::Integer(3))
 	);
@@ -317,7 +317,7 @@ fn plan7() {
 				"val5".to_string(),
 				"val6".to_string()
 			],
-			&false
+			false
 		),
 		Ok(DataType::Integer(6))
 	);
@@ -568,7 +568,7 @@ fn plan7() {
 				"deux".to_string(),
 				"trois".to_string()
 			],
-			&true
+			true
 		),
 		Ok(DataType::Integer(0))
 	);
@@ -971,5 +971,55 @@ fn plan8() {
 			"meal".to_string()
 		]),
 		Ok(DataType::Integer(1))
+	);
+	assert_eq!(
+		sadd(
+			"animals",
+			vec![
+				"ape".to_string(),
+				"bird".to_string(),
+				"cat".to_string(),
+				"dog".to_string()
+			]
+		),
+		Ok(DataType::Integer(4))
+	);
+	assert_eq!(
+		srem("animals", vec!["fish".to_string()]),
+		Ok(DataType::Integer(0))
+	);
+	assert_eq!(
+		srem("animal", vec!["ape".to_string()]),
+		Ok(DataType::Integer(0))
+	);
+	assert_eq!(
+		srem("animals", vec!["ape".to_string()]),
+		Ok(DataType::Integer(1))
+	);
+	assert_eq!(
+		srem(
+			"animals",
+			vec![
+				"bird".to_string(),
+				"cat".to_string()
+			]
+		),
+		Ok(DataType::Integer(2))
+	);
+	assert_eq!(
+		srem(
+			"animals",
+			vec![
+				"ape".to_string(),
+				"bird".to_string(),
+				"cat".to_string(),
+				"dog".to_string()
+			]
+		),
+		Ok(DataType::Integer(1))
+	);
+	assert_eq!(
+		del(&vec!["animals".to_string()]),
+		Ok(DataType::Integer(0))
 	);
 }

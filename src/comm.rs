@@ -366,6 +366,12 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		syntax: "srandmember KEY [ COUNT ]",
 		validation: |r| {0 < r.parameters.len()},
 		doc: "get a number of random members from the set stored at key"
+	},
+	"srem" => Command {
+		function: cmd_srem,
+		syntax: "srem KEY VALUE [ VALUE ... ]",
+		validation: |r| {1 < r.parameters.len()},
+		doc: "remove specified values from the set stored at key"
 	}
 };
 
@@ -646,11 +652,11 @@ fn cmd_lpop(req: &Request) -> Result<DataType, &str> {
 }
 
 fn cmd_lpush(req: &Request) -> Result<DataType, &str> {
-	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), &false)
+	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), false)
 }
 
 fn cmd_lpushx(req: &Request) -> Result<DataType, &str> {
-	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), &true)
+	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), true)
 }
 
 fn cmd_lrange(req: &Request) -> Result<DataType, &str> {
@@ -767,10 +773,7 @@ fn cmd_smove(req: &Request) -> Result<DataType, &str> {
 }
 
 fn cmd_sinter(req: &Request) -> Result<DataType, &str> {
-	kv::sinter(
-		req.parameters.iter().nth(0).unwrap().as_str(),
-		req.parameters[1..].to_vec()
-	)
+	kv::sinter(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
 fn cmd_sinterstore(req: &Request) -> Result<DataType, &str> {
@@ -802,4 +805,8 @@ fn cmd_srandmember(req: &Request) -> Result<DataType, &str> {
 			"1"
 		}
 	)
+}
+
+fn cmd_srem(req: &Request) -> Result<DataType, &str> {
+	kv::srem(&req.parameters[0], req.parameters[1..].to_vec())
 }
