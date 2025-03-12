@@ -4,10 +4,11 @@ use getopts::Options;
 use std::env;
 use std::error::Error;
 
-pub fn do_args() -> Result<(bool, String, usize), Box<dyn Error>> {
+pub fn do_args() -> Result<(bool, String, String, usize), Box<dyn Error>> {
 	let mut to_quit = false;
 	let mut bindaddr = String::from("0.0.0.0:6379");
 	let mut thpoolsize: usize = 64;
+	let mut datafilepath = String::from("");
 	let args: Vec<String> = env::args().collect();
 	let progname = args[0].clone();
 
@@ -16,6 +17,11 @@ pub fn do_args() -> Result<(bool, String, usize), Box<dyn Error>> {
 		"b", "bind",
 		"bind address for inbound connections\n(default: \"0.0.0.0:6379\")",
 		"ADDR"
+	);
+	opts.optopt(
+		"d", "datapath",
+		"restore data from file",
+		"PATH"
 	);
 	opts.optopt("t", "thpool", "threadpool size (default: 64)", "SIZE");
 	opts.optflag("h", "help", "print this help menu");
@@ -35,7 +41,11 @@ pub fn do_args() -> Result<(bool, String, usize), Box<dyn Error>> {
 				thpoolsize = usize::from_str_radix(&s, 10).unwrap();
 			}
 
-			Ok((to_quit, bindaddr, thpoolsize))
+			if let Some(s) = m.opt_str("d") {
+				datafilepath = s.to_string();
+			}
+
+			Ok((to_quit, datafilepath, bindaddr, thpoolsize))
 		},
 		Err(e) => Err(Box::new(e))
 	}

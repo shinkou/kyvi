@@ -1,10 +1,7 @@
-mod datatype;
-mod kv;
-mod parser;
-mod request;
-
 use std::net::{TcpListener, TcpStream};
 use threadpool::ThreadPool;
+
+use super::parser;
 
 pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 	let listener: TcpListener = TcpListener::bind(bindaddr)?;

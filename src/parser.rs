@@ -432,12 +432,10 @@ pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
 						}
 				}
 			},
-			Err(e) => if let Err(_) = write!(
-				writer,
-				"{}",
-				DataType::err(e)
-			) {
-				println!("Error: {:?}", e);
+			Err(e) => {
+				if let Err(_) = write!(writer, "{}", DataType::err(e)) {
+					eprintln!("Error: {:?}", e);
+				}
 				return;
 			}
 		}
