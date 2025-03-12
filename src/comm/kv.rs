@@ -1036,7 +1036,8 @@ pub fn spop<'a>(k: &'a str, n: &'a str, single_item: bool)
 		Ok(v) => v,
 		Err(_) => return Err("ERR Number must be a positive integer")
 	};
-	match M.lock().unwrap().get_mut(k) {
+	let mut m = M.lock().unwrap();
+	match m.get_mut(k) {
 		Some(DataType::HashSet(hset)) => {
 			let h: Vec<DataType> = hset.iter().cloned().collect();
 			let mut idxs: Vec<usize> = Vec::new();
@@ -1049,6 +1050,7 @@ pub fn spop<'a>(k: &'a str, n: &'a str, single_item: bool)
 			let vs = idxs.iter().map(|&idx|{h.get(idx).unwrap().clone()})
 				.collect::<Vec<_>>();
 			hset.retain(|e| {!vs.contains(e)});
+			if 0 == hset.len() {m.remove(k);}
 			if single_item && 1 == vs.len() {
 				Ok(vs.first().unwrap().clone())
 			} else {
