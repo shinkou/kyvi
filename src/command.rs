@@ -436,7 +436,10 @@ pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
 				if let Err(_) = write!(writer, "{}", DataType::err(e)) {
 					eprintln!("Error: {:?}", e);
 				}
-				return;
+				match e {
+					"ERR EOF reached" | "ERR Connection error" => {return;},
+					_ => {}
+				}
 			}
 		}
 	}
