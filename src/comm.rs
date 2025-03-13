@@ -1,7 +1,7 @@
 use std::net::{TcpListener, TcpStream};
 use threadpool::ThreadPool;
 
-use super::parser;
+use super::command::process;
 
 pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 	let listener: TcpListener = TcpListener::bind(bindaddr)?;
@@ -23,5 +23,5 @@ pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 
 fn handle_client(stream: TcpStream) {
 	println!("Accepted connection from: {}", stream.peer_addr().unwrap());
-	parser::process(&stream, &stream);
+	process(&stream, &stream);
 }

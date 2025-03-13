@@ -1,5 +1,6 @@
 mod cli;
 mod comm;
+mod command;
 mod datatype;
 mod kv;
 mod request;
@@ -15,7 +16,7 @@ fn main() {
 					// this Vec is used to discard output from the parser
 					let mut buf: Vec<u8> = Vec::new();
 					match File::open(datafilepath) {
-						Ok(f) => parser::process(&f, &mut buf),
+						Ok(f) => command::process(&f, &mut buf),
 						Err(e) => {
 							eprintln!("{:?}", e.to_string());
 							return;
