@@ -29,7 +29,7 @@ fn main() {
 				}
 				println!("Listening on \"{bindaddr}\"...");
 				if let Err(e) = comm::listen_to(&bindaddr, thpoolsize) {
-					eprintln!("{:?}", e.to_string());
+					eprintln!("{}", e.to_string());
 				}
 			}
 		},

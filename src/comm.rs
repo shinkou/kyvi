@@ -8,14 +8,8 @@ pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
 	let pool = ThreadPool::new(poolsize);
 	for stream in listener.incoming() {
 		match stream {
-			Ok(stream) => {
-				pool.execute(move || {
-					handle_client(stream);
-				});
-			}
-			Err(e) => {
-				eprintln!("Unhandled error: {:?}", e);
-			}
+			Ok(stream) => pool.execute(move || {handle_client(stream);}),
+			Err(e) => eprintln!("Unhandled error: {:?}", e)
 		}
 	}
 	Ok(())
