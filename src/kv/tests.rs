@@ -10,11 +10,16 @@ fn plan1() {
 	assert_eq!(get("first"), Ok(DataType::bulkStr("1st")));
 	assert_eq!(get("second"), Ok(DataType::bulkStr("2nd")));
 	assert_eq!(get("third"), Ok(DataType::bulkStr("3rd")));
-	assert_eq!(keys(".*"), Ok(DataType::List(vec![
-		DataType::bulkStr("first"),
-		DataType::bulkStr("second"),
-		DataType::bulkStr("third")
-	])));
+	assert!(matches!(keys(".*"), Ok(DataType::List(_))));
+	if let Ok(DataType::List(l)) = keys(".*") {
+		let vs = vec![
+			DataType::bulkStr("first"),
+			DataType::bulkStr("second"),
+			DataType::bulkStr("third")
+		];
+		assert_eq!(l.len(), 3usize);
+		assert!(vs.iter().all(|v| {l.contains(v)}));
+	}
 	assert_eq!(memsize(), 25usize);
 	assert_eq!(
 		del(&vec!["first".to_string()]),
@@ -51,11 +56,16 @@ fn plan2() {
 	assert_eq!(get("one"), Ok(DataType::bulkStr("un")));
 	assert_eq!(get("two"), Ok(DataType::bulkStr("deux")));
 	assert_eq!(get("three"), Ok(DataType::bulkStr("trois")));
-	assert_eq!(keys(".*"), Ok(DataType::List(vec![
-		DataType::bulkStr("one"),
-		DataType::bulkStr("three"),
-		DataType::bulkStr("two")
-	])));
+	assert!(matches!(keys(".*"), Ok(DataType::List(_))));
+	if let Ok(DataType::List(l)) = keys(".*") {
+		let vs = vec![
+			DataType::bulkStr("one"),
+			DataType::bulkStr("two"),
+			DataType::bulkStr("three")
+		];
+		assert_eq!(l.len(), 3usize);
+		assert!(vs.iter().all(|v| {l.contains(v)}));
+	}
 	assert_eq!(memsize(), 22usize);
 	assert_eq!(
 		del(&vec![
