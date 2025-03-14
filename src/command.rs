@@ -598,13 +598,13 @@ fn cmd_info(_req: &Request) -> Result<DataType, &str> {
 	let ss = match UNITS.get(if 6 < idx {6usize} else {idx as usize}) {
 		Some(u) =>
 			if 0 < idx {
-				format!("Data size: {:.2}{}B", memsize, u)
+				format!("Data size: {:.2}{}B\r\n", memsize, u)
 			} else {
-				format!("Data size: {}B", memsize)
+				format!("Data size: {}B\r\n", memsize)
 			},
-		None => format!("Data size: {}B", memsize)
+		None => format!("Data size: {}B\r\n", memsize)
 	};
-	Ok(DataType::str(&ss))
+	Ok(DataType::bulkStr(&ss))
 }
 
 fn cmd_keys(req: &Request) -> Result<DataType, &str> {
