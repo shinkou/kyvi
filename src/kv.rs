@@ -8,6 +8,22 @@ use super::datatype::DataType;
 
 use lazy_static::lazy_static;
 
+const ERRMSG_CNTNAI: &str = "ERR Count is not an integer";
+const ERRMSG_IDXNAI: &str = "ERR Index is not an integer";
+const ERRMSG_IDXOOR: &str = "ERR Index out of range";
+const ERRMSG_NOENX2: &str = "ERR Number of elements is not multiple of 2";
+const ERRMSG_NOSKEY: &str = "ERR No such key";
+const ERRMSG_NUMNAI: &str = "ERR Number is not an integer";
+const ERRMSG_NUMNPI: &str = "ERR Number is not a positive integer";
+const ERRMSG_STANAI: &str = "ERR Start index is not an integer";
+const ERRMSG_STONAI: &str = "ERR Stop index is not an integer";
+const ERRMSG_SYNERR: &str = "ERR Syntax error";
+const ERRMSG_VALNAI: &str = "ERR Value is not an integer";
+const ERRMSG_VALNAIOOR: &str =
+	"ERR Value is not an integer or out of range";
+const ERRMSG_WRONGTYPE: &str =
+	"WRONGTYPE Operation against a key holding the wrong kind of value";
+
 lazy_static! {
 	static ref M: Mutex<HashMap<DataType, DataType>> =
 		Mutex::new(HashMap::new());
@@ -22,10 +38,7 @@ pub fn append<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 			m.insert(bstr_k.clone(), DataType::bulkStr(&a));
 			Ok(DataType::Integer(a.len().try_into().unwrap()))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			m.insert(bstr_k.clone(), DataType::bulkStr(v));
 			Ok(DataType::Integer(v.len().try_into().unwrap()))
@@ -46,12 +59,9 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 				);
 				Ok(DataType::Integer(x))
 			},
-			Err(_) => Err("ERR Value is not an integer or out of range")
+			Err(_) => Err(ERRMSG_WRONGTYPE)
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			m.insert(bstr_k.clone(), DataType::bulkStr("-1"));
 			Ok(DataType::Integer(-1))
@@ -62,7 +72,7 @@ pub fn decr(k: &str) -> Result<DataType, &str> {
 pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let n: i64 = match v.parse::<i64>() {
 		Ok(someint) => someint,
-		Err(_) => return Err("ERR Increment by value is not an integer")
+		Err(_) => return Err(ERRMSG_VALNAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -76,12 +86,9 @@ pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 				);
 				Ok(DataType::Integer(x))
 			},
-			Err(_) => Err("ERR Value is not an integer or out of range")
+			Err(_) => Err(ERRMSG_WRONGTYPE)
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			let x: i64 = 0 - n;
 			m.insert(bstr_k.clone(), DataType::BulkString(x.to_string()));
@@ -107,10 +114,7 @@ pub fn get(k: &str) -> Result<DataType, &str> {
 	let data = m.get(&bstr_k);
 	match data {
 		Some(DataType::BulkString(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	}
 }
@@ -121,10 +125,7 @@ pub fn getdel(k: &str) -> Result<DataType, &str> {
 	let data = m.get(&bstr_k);
 	let output = match data {
 		Some(DataType::BulkString(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	};
 	if let Ok(DataType::BulkString(_)) = output {
@@ -139,10 +140,7 @@ pub fn getset<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let data = m.get_mut(&bstr_k);
 	let output = match data {
 		Some(DataType::BulkString(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	};
 	m.insert(bstr_k.clone(), DataType::bulkStr(v));
@@ -163,10 +161,7 @@ pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 			if 0 == hmap.len() {m.remove(&bstr_k);}
 			Ok(DataType::Integer(cnt))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -181,10 +176,7 @@ pub fn hexists<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 				0i64
 			}
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
@@ -196,10 +188,7 @@ pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, &'a str> {
 			Some(v) => Ok(v.clone()),
 			None => Ok(DataType::Null)
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong \
-			kind of value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	}
 }
@@ -210,10 +199,7 @@ pub fn hgetall(k: &str) -> Result<DataType, &str> {
 	let data = m.get(&bstr_k);
 	match data {
 		Some(DataType::HashMap(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::EmptyList)
 	}
 }
@@ -222,7 +208,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 	-> Result<DataType, &'a str> {
 	let someint: i64 = match n.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Increment is not a number")
+		Err(_) => return Err(ERRMSG_VALNAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -239,10 +225,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 							);
 							Ok(DataType::Integer(x))
 						},
-						Err(_) => Err(
-							"ERR Value is not an integer or out of \
-							range"
-						)
+						Err(_) => Err(ERRMSG_VALNAI)
 					}
 				},
 				None => {
@@ -257,10 +240,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 								   // keys
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			let mut somehmap: HashMap<DataType, DataType> = HashMap::new();
 			somehmap.insert(
@@ -279,10 +259,7 @@ pub fn hkeys(k: &str) -> Result<DataType, &str> {
 		Some(DataType::HashMap(hmap)) => Ok(DataType::List(
 			hmap.keys().cloned().collect::<Vec<_>>()
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::List(vec![]))
 	}
 }
@@ -292,10 +269,7 @@ pub fn hlen(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashMap(hmap)) =>
 			Ok(DataType::Integer(hmap.len().try_into().unwrap())),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
@@ -311,10 +285,7 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 				}
 			}).collect::<Vec<_>>()
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::List(
 			fs.iter().map(|_| {DataType::Null}).collect::<Vec<_>>()
 		))
@@ -324,7 +295,7 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, &str> {
 pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
 	-> Result<DataType, &'a str> {
 	if 0 != nvs.len() % 2 {
-		return Err("ERR Number of elements must a multiple of 2");
+		return Err(ERRMSG_NOENX2);
 	}
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -357,7 +328,7 @@ pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
 			}
 			Ok(DataType::Integer(cnt))
 		},
-		Some(_) => Err("ERR Key must associate with a hash"),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			let mut somehmap: HashMap<DataType, DataType> = HashMap::new();
 			nvs.chunks(2).for_each(|x| {somehmap.insert(
@@ -377,10 +348,7 @@ pub fn hvals(k: &str) -> Result<DataType, &str> {
 		Some(DataType::HashMap(hmap)) => Ok(DataType::List(
 			hmap.values().cloned().collect::<Vec<_>>()
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::List(vec![]))
 	}
 }
@@ -399,15 +367,10 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 					);
 					Ok(DataType::Integer(x))
 				},
-				Err(_) => Err(
-					"ERR Value is not an integer or out of range"
-				)
+				Err(_) => Err(ERRMSG_VALNAIOOR)
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			m.insert(bstr_k.clone(), DataType::bulkStr("1"));
 			Ok(DataType::Integer(1))
@@ -418,7 +381,7 @@ pub fn incr(k: &str) -> Result<DataType, &str> {
 pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 	let n: i64 = match v.parse::<i64>() {
 		Ok(someint) => someint,
-		Err(_) => return Err("ERR Increment by value is not an integer")
+		Err(_) => return Err(ERRMSG_VALNAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -432,12 +395,9 @@ pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 				);
 				Ok(DataType::Integer(x))
 			},
-			Err(_) => Err("ERR Value is not an integer or out of range")
+			Err(_) => Err(ERRMSG_VALNAIOOR)
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			let x: i64 = 0 + n;
 			m.insert(bstr_k.clone(), DataType::BulkString(x.to_string()));
@@ -468,7 +428,7 @@ pub fn keys(p: &str) -> Result<DataType, &str> {
 pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, &'a str> {
 	let idx: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Index must be an integer")
+		Err(_) => return Err(ERRMSG_IDXNAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
@@ -483,10 +443,7 @@ pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, &'a str> {
 				None => Ok(DataType::Null)
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
@@ -501,7 +458,7 @@ pub fn linsert<'a>(k: &'a str, o: &'a str, p: &'a str, e: &'a str)
 					let idx = match o.to_ascii_lowercase().as_str() {
 						"before" => i,
 						"after" => i + 1usize,
-						_ => return Err("ERR Syntax error")
+						_ => return Err(ERRMSG_SYNERR)
 					};
 					l.insert(idx, DataType::bulkStr(e));
 					Ok(DataType::Integer(l.len() as i64))
@@ -509,10 +466,7 @@ pub fn linsert<'a>(k: &'a str, o: &'a str, p: &'a str, e: &'a str)
 				None => return Ok(DataType::Integer(-1))
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -523,10 +477,7 @@ pub fn llen(k: &str) -> Result<DataType, &str> {
 		Some(DataType::List(l)) => Ok(DataType::Integer(
 			l.len().try_into().unwrap()
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
@@ -539,10 +490,7 @@ pub fn lpush(k: &str, vs: Vec<String>, x: bool) -> Result<DataType, &str> {
 			vs.iter().for_each(|v| {l.insert(0, DataType::bulkStr(&v));});
 			Ok(DataType::Integer(l.len().try_into().unwrap()))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => match x {
 			true => {
 				Ok(DataType::Integer(0))
@@ -562,7 +510,7 @@ pub fn lpush(k: &str, vs: Vec<String>, x: bool) -> Result<DataType, &str> {
 pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 	let popsize: usize = match n.parse::<usize>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Number must be a positive integer")
+		Err(_) => return Err(ERRMSG_NUMNPI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -577,10 +525,7 @@ pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 			if 0 == somevec.len() {m.remove(&bstr_k);}
 			Ok(DataType::List(l))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	}
 }
@@ -590,11 +535,11 @@ pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
 	-> Result<DataType, &'a str> {
 	let mut istart: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Start index must be a number")
+		Err(_) => return Err(ERRMSG_STANAI)
 	};
 	let mut istop: i64 = match j.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Stop index must be a number")
+		Err(_) => return Err(ERRMSG_STONAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
@@ -632,10 +577,7 @@ pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
 				))
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::EmptyList)
 	}
 }
@@ -644,7 +586,7 @@ pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
 	-> Result<DataType, &'a str> {
 	let cnt: i64 = match n.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Count must be a number")
+		Err(_) => return Err(ERRMSG_CNTNAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let dte = DataType::bulkStr(e);
@@ -684,10 +626,7 @@ pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
 			if 0 == l.len() {m.remove(&bstr_k);}
 			Ok(DataType::Integer(idxs.len() as i64))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	}
 }
@@ -696,7 +635,7 @@ pub fn lset<'a>(k: &'a str, i: &'a str, e: &'a str)
 	-> Result<DataType, &'a str> {
 	let idx: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Index must be an integer")
+		Err(_) => return Err(ERRMSG_IDXNAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get_mut(&bstr_k) {
@@ -714,14 +653,11 @@ pub fn lset<'a>(k: &'a str, i: &'a str, e: &'a str)
 				*element = DataType::bulkStr(e);
 				Ok(DataType::bulkStr("OK"))
 			} else {
-				Err("ERR Index out of range")
+				Err(ERRMSG_IDXOOR)
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
-		None => Err("ERR No such key")
+		Some(_) => Err(ERRMSG_WRONGTYPE),
+		None => Err(ERRMSG_NOSKEY)
 	}
 }
 
@@ -729,11 +665,11 @@ pub fn ltrim<'a>(k: &'a str, i: &'a str, j: &'a str)
 	-> Result<DataType, &'a str> {
 	let mut istart: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Start index must be a number")
+		Err(_) => return Err(ERRMSG_STANAI)
 	};
 	let mut istop: i64 = match j.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Stop index must be a number")
+		Err(_) => return Err(ERRMSG_STONAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get_mut(&bstr_k) {
@@ -766,10 +702,7 @@ pub fn ltrim<'a>(k: &'a str, i: &'a str, j: &'a str)
 			};
 			Ok(DataType::bulkStr("OK"))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::bulkStr("OK"))
 	}
 }
@@ -794,7 +727,7 @@ pub fn mget(ks: &Vec<String>) -> Result<DataType, &str> {
 
 pub fn mset(nvs: &Vec<String>) -> Result<DataType, &str> {
 	if 0 != nvs.len() % 2 {
-		return Err("ERR Number of elements must a multiple of 2");
+		return Err(ERRMSG_NOENX2);
 	}
 	let mut m = M.lock().unwrap();
 	nvs.chunks(2).for_each(|x| {
@@ -806,7 +739,7 @@ pub fn mset(nvs: &Vec<String>) -> Result<DataType, &str> {
 pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 	let popsize: usize = match n.parse::<usize>() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Number must be a positive integer")
+		Err(_) => return Err(ERRMSG_NUMNPI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -821,10 +754,7 @@ pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, &'a str> {
 			if 0 == somevec.len() {m.remove(&bstr_k);}
 			Ok(DataType::List(l))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	}
 }
@@ -838,10 +768,7 @@ pub fn rpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
 			vs.iter().for_each(|v| {l.push(DataType::bulkStr(&v));});
 			Ok(DataType::Integer(l.len().try_into().unwrap()))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => match x {
 			true => {
 				Ok(DataType::Integer(0))
@@ -867,10 +794,7 @@ pub fn sadd(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 				if s.insert(DataType::bulkStr(v)){1}else{0}
 			}).sum()
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => {
 			let mut s: HashSet<DataType> = HashSet::new();
 			let i = vs.iter().map(|v|{
@@ -888,10 +812,7 @@ pub fn scard(k: &str) -> Result<DataType, &str> {
 		Some(DataType::HashSet(hset)) => Ok(DataType::Integer(
 			hset.len() as i64
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -912,10 +833,7 @@ pub fn sdiff(k: &str, ks: Vec<String>) -> Result<DataType, &str> {
 			});
 			Ok(DataType::List(vs.iter().cloned().collect()))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::EmptyList)
 	}
 }
@@ -936,10 +854,7 @@ pub fn sdiffstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 			m.insert(DataType::bulkStr(dst), DataType::hset(&vs));
 			Ok(DataType::Integer(vs.len() as i64))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -965,10 +880,7 @@ pub fn sinter(k: &str, ks: Vec<String>) -> Result<DataType, &str> {
 			}});
 			Ok(DataType::List(vs))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::EmptyList)
 	}
 }
@@ -989,10 +901,7 @@ pub fn sinterstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 			m.insert(DataType::bulkStr(dst), DataType::hset(&vs));
 			Ok(DataType::Integer(vs.len() as i64))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -1003,10 +912,7 @@ pub fn sismember<'a>(k: &'a str, v: &'a str) -> Result<DataType, &'a str> {
 		Some(DataType::HashSet(hset)) => Ok(DataType::Integer(
 			if hset.contains(&DataType::bulkStr(v)) {1} else {0}
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -1016,10 +922,7 @@ pub fn smembers(k: &str) -> Result<DataType, &str> {
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashSet(hset)) =>
 			Ok(DataType::HashSet(hset.clone())),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::EmptyList)
 	}
 }
@@ -1034,10 +937,7 @@ pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
 			if 0 == hset.len() {m.remove(&bstr_src);}
 			e
 		},
-		Some(_) => return Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => return Err(ERRMSG_WRONGTYPE),
 		None => return Ok(DataType::Integer(0))
 	};
 	match item {
@@ -1048,10 +948,7 @@ pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
 					hset2.insert(item.unwrap());
 					Ok(DataType::Integer(1))
 				},
-				Some(_) => Err(
-					"WRONGTYPE Operation against a key holding the wrong \
-					kind of value"
-				),
+				Some(_) => Err(ERRMSG_WRONGTYPE),
 				None => {
 					let mut hset2: HashSet<DataType> = HashSet::new();
 					hset2.insert(item.unwrap());
@@ -1060,10 +957,7 @@ pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
 				}
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -1076,10 +970,7 @@ pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 				if hset.contains(&DataType::bulkStr(v)) {1} else {0}
 			)}).collect()
 		)),
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::List(
 			vs.iter().map(|_| {DataType::Integer(0)}).collect()
 		))
@@ -1090,7 +981,7 @@ pub fn spop<'a>(k: &'a str, n: &'a str, single_item: bool)
 	-> Result<DataType, &'a str> {
 	let popsize: usize = match n.parse() {
 		Ok(v) => v,
-		Err(_) => return Err("ERR Number must be a positive integer")
+		Err(_) => return Err(ERRMSG_NUMNPI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -1114,10 +1005,7 @@ pub fn spop<'a>(k: &'a str, n: &'a str, single_item: bool)
 				Ok(DataType::List(vs))
 			}
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::EmptyList)
 	}
 }
@@ -1126,7 +1014,7 @@ pub fn srandmember<'a>(k: &'a str, c: &'a str)
 	-> Result<DataType, &'a str> {
 	let i = match c.parse::<i64>() {
 		Ok(n) => n,
-		Err(_) => return Err("ERR Number must be an integer")
+		Err(_) => return Err(ERRMSG_NUMNAI)
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
@@ -1161,10 +1049,7 @@ pub fn srandmember<'a>(k: &'a str, c: &'a str)
 					.collect::<Vec<_>>()
 			))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Null)
 	}
 }
@@ -1184,10 +1069,7 @@ pub fn srem(k: &str, vs: Vec<String>) -> Result<DataType, &str> {
 			if 0 == hset.len() {m.remove(&bstr_k);}
 			Ok(DataType::Integer(cnt))
 		},
-		Some(_) => Err(
-			"WRONGTYPE Operation against a key holding the wrong kind of \
-			value"
-		),
+		Some(_) => Err(ERRMSG_WRONGTYPE),
 		None => Ok(DataType::Integer(0))
 	}
 }
@@ -1200,10 +1082,7 @@ pub fn sunion(ks: Vec<String>) -> Result<DataType, &'static str> {
 		if let Some(DataType::HashSet(hset)) = m.get(&bstr_k) {
 			wk = wk.union(hset).cloned().collect();
 		} else {
-			return Err(
-				"WRONGTYPE Operation against a key holding the wrong kind \
-				of value"
-			);
+			return Err(ERRMSG_WRONGTYPE);
 		}
 	}
 	Ok(DataType::List(wk.iter().cloned().collect::<Vec<_>>()))
@@ -1217,10 +1096,7 @@ pub fn sunionstore(dst: &str, ks: Vec<String>) -> Result<DataType, &str> {
 		if let Some(DataType::HashSet(hset)) = m.get(&bstr_k) {
 			wk = wk.union(hset).cloned().collect();
 		} else {
-			return Err(
-				"WRONGTYPE Operation against a key holding the wrong kind \
-				of value"
-			);
+			return Err(ERRMSG_WRONGTYPE);
 		}
 	}
 	m.insert(DataType::bulkStr(dst), DataType::hset(&wk));

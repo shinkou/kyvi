@@ -2,6 +2,14 @@ use std::io::{BufRead, BufReader, Read};
 
 use super::request::Request;
 
+const ERRMSG_BADLISTLEN: &str = "ERR Invalid list length";
+const ERRMSG_BADSTRLEN: &str = "ERR Invalid string length";
+const ERRMSG_CNXERR: &str = "ERR Connection error";
+const ERRMSG_EOF: &str = "ERR EOF reached";
+const ERRMSG_LISTLENDIFF: &str = "ERR Contents unmatch list length";
+const ERRMSG_PROTOERR: &str = "ERR Protocol error";
+const ERRMSG_STRLENDIFF: &str = "ERR Contents unmatch string length";
+
 const EMPTY_STRING: String = String::new();
 
 pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Request, &str> {
@@ -25,31 +33,31 @@ fn get_parameters<R: Read>(reader: &mut BufReader<R>)
 	loop {
 		sln.clear();
 		let line = match reader.read_line(&mut sln) {
-			Ok(0) => return Err("ERR EOF reached"),
+			Ok(0) => return Err(ERRMSG_EOF),
 			Ok(_) => sln.trim_end(),
-			Err(_) => return Err("ERR Connection error")
+			Err(_) => return Err(ERRMSG_CNXERR)
 		};
 		if 0 == line.len() && (sbuf.len() < slen || lcnt < llen) {
-			return Err("ERR Protocol error");
+			return Err(ERRMSG_PROTOERR);
 		};
 		let c = line.chars().nth(0).unwrap_or('\0');
 		if 0 == llen {
 			if '*' == c {
 				match line[1..].parse::<usize>() {
 					Ok(n) => llen = n,
-					Err(_) => return Err("ERR Invalid list length")
+					Err(_) => return Err(ERRMSG_BADLISTLEN)
 				};
 			} else {
-				return Err("ERR Protocol error");
+				return Err(ERRMSG_PROTOERR);
 			};
 		} else if 0 == slen {
 			if '$' == c {
 				match line[1..].parse::<usize>() {
 					Ok(n) => slen = n,
-					Err(_) => return Err("ERR Invalid string length")
+					Err(_) => return Err(ERRMSG_BADSTRLEN)
 				};
 			} else {
-				return Err("ERR Protocol error");
+				return Err(ERRMSG_PROTOERR);
 			};
 		} else if 0 < slen {
 			if sbuf.len() < slen {
@@ -61,19 +69,19 @@ fn get_parameters<R: Read>(reader: &mut BufReader<R>)
 				slen = 0;
 				lcnt += 1;
 			} else if sbuf.len() > slen {
-				return Err("ERR Contents unmatch string length");
+				return Err(ERRMSG_STRLENDIFF);
 			};
 		} else {
-			return Err("ERR Protocol error");
+			return Err(ERRMSG_PROTOERR);
 		};
 		if 0 < llen && lcnt == llen {
 			break;
 		}
 	};
 	if slen != 0 || sbuf.len() != 0 {
-		Err("ERR Contents unmatch string length")
+		Err(ERRMSG_STRLENDIFF)
 	} else if lcnt != llen {
-		Err("ERR Contents unmatch list length")
+		Err(ERRMSG_LISTLENDIFF)
 	} else {
 		Ok(parameters)
 	}

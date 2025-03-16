@@ -288,7 +288,7 @@ fn plan6() {
 	);
 	assert_eq!(
 		hincrby("fieldvalues", "field2", "64"),
-		Err("ERR Value is not an integer or out of range")
+		Err("ERR Value is not an integer")
 	);
 	assert_eq!(
 		del(&vec!["fieldvalues".to_string()]),
