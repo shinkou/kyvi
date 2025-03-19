@@ -47,7 +47,10 @@ fn main() {
 					}
 					exit(
 						if 0 < datafilepath.len() {
-							match File::options().create(true).write(true)
+							match File::options()
+								.create(true)
+								.truncate(true)
+								.write(true)
 								.open(datafilepath.clone()) {
 								Ok(mut f) => {
 									if let Err(e) = kv::write_data(&mut f) {
