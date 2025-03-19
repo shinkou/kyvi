@@ -64,7 +64,6 @@ fn main() {
 							0i32
 						}
 					);
-					()
 				});
 				println!("Listening on \"{bindaddr}\"...");
 				if let Err(e) = comm::listen_to(&pool, &bindaddr) {
