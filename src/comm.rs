@@ -3,9 +3,8 @@ use threadpool::ThreadPool;
 
 use super::command::process;
 
-pub fn listen_to(bindaddr: &str, poolsize: usize) -> std::io::Result<()> {
+pub fn listen_to(pool: &ThreadPool, bindaddr: &str) -> std::io::Result<()> {
 	let listener: TcpListener = TcpListener::bind(bindaddr)?;
-	let pool = ThreadPool::new(poolsize);
 	for stream in listener.incoming() {
 		match stream {
 			Ok(stream) => pool.execute(move || {handle_client(stream);}),

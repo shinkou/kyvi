@@ -1,5 +1,6 @@
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use std::sync::Mutex;
 
 use regex::Regex;
@@ -21,6 +22,7 @@ const ERRMSG_SYNERR: &str = "ERR Syntax error";
 const ERRMSG_VALNAI: &str = "ERR Value is not an integer";
 const ERRMSG_VALNAIOOR: &str =
 	"ERR Value is not an integer or out of range";
+const ERRMSG_WRITEFAIL: &str = "Write failure";
 const ERRMSG_WRONGTYPE: &str =
 	"WRONGTYPE Operation against a key holding the wrong kind of value";
 
@@ -1101,6 +1103,44 @@ pub fn sunionstore(dst: &str, ks: Vec<String>) -> Result<DataType, &str> {
 	}
 	m.insert(DataType::bulkStr(dst), DataType::hset(&wk));
 	Ok(DataType::Integer(wk.len() as i64))
+}
+
+pub fn write_data<'a, W>(w: &'a mut W) -> Result<(), &'a str>
+	where W: Write {
+	let m = M.lock().unwrap();
+	for t in m.iter() {
+		match t.0 {
+			DataType::BulkString(_) => {},
+			_ => return Err(ERRMSG_WRONGTYPE)
+		}
+		let l = DataType::List(match t.1 {
+			DataType::HashMap(hm) => {
+				let mut v = vec![DataType::bulkStr("hset"), t.0.clone()];
+				v.extend(hm.iter().flat_map(|x|
+					vec![x.0.clone(), x.1.clone()]
+				));
+				v
+			},
+			DataType::HashSet(hs) => {
+				let mut v = vec![DataType::bulkStr("sadd"), t.0.clone()];
+				v.extend(hs.iter().cloned());
+				v
+			},
+			DataType::List(l) => {
+				let mut v = vec![DataType::bulkStr("rpush"), t.0.clone()];
+				v.extend(l.iter().cloned());
+				v
+			},
+			DataType::BulkString(_) => {
+				vec![DataType::bulkStr("set"), t.0.clone(), t.1.clone()]
+			},
+			_ => return Err(ERRMSG_WRONGTYPE)
+		});
+		if let Err(_) = write!(w, "{}", l) {
+			return Err(ERRMSG_WRITEFAIL);
+		}
+	}
+	Ok(())
 }
 
 #[cfg(test)]
