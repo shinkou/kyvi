@@ -5,9 +5,11 @@ use std::fmt;
 #[derive(Clone, Debug, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
 pub enum DataType {
+/*
 	BigInteger(i128),
 	Boolean(bool),
 	BulkError(String),
+*/
 	BulkString(String),
 	EmptyList,
 	HashMap(
@@ -29,11 +31,14 @@ pub enum DataType {
 impl DataType {
 	pub fn capacity(&self) -> usize {
 		match self {
+/*
 			DataType::BigInteger(_) => 16usize,
 			DataType::Boolean(_) => 1usize,
-			DataType::BulkError(s) | DataType::BulkString(s) |
-				DataType::SimpleError(s) | DataType::SimpleString(s) =>
-				s.capacity(),
+			DataType::BulkError(s) |
+*/
+			DataType::BulkString(s) |
+			DataType::SimpleError(s) |
+			DataType::SimpleString(s) => s.capacity(),
 			DataType::EmptyList => 0usize,
 			DataType::HashMap(h) =>
 				h.len() + h.iter().map(
@@ -48,9 +53,11 @@ impl DataType {
 		}
 	}
 
+/*
 	pub fn bulkErr(s: &str) -> DataType {
 		DataType::BulkError(s.to_string())
 	}
+*/
 
 	pub fn bulkStr(s: &str) -> DataType {
 		DataType::BulkString(s.to_string())
@@ -76,12 +83,14 @@ impl DataType {
 impl fmt::Display for DataType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
+/*
 			DataType::BigInteger(n) =>
 				write!(f, "({}\r\n", n),
 			DataType::Boolean(b) =>
 				write!(f, "#{}\r\n", if *b {"t"} else {"f"}),
 			DataType::BulkError(s) =>
 				write!(f, "!{}\r\n{}\n", s.capacity(), s),
+*/
 			DataType::BulkString(s) =>
 				write!(f, "${}\r\n{}\r\n", s.capacity(), s),
 			DataType::EmptyList => write!(f, "*0\r\n"),
