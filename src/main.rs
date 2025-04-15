@@ -1,11 +1,3 @@
-mod cli;
-mod comm;
-mod command;
-mod datatype;
-mod kv;
-mod request;
-mod parser;
-
 use signal_hook::consts::{SIGINT, SIGTERM};
 use signal_hook::flag::register;
 use std::fs::File;
@@ -15,6 +7,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 use threadpool::ThreadPool;
+
+use kyvi::{cli, comm, command, kv};
 
 fn main() {
 	match cli::do_args() {
