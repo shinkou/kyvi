@@ -1,0 +1,32 @@
+version: '3.7'
+networks:
+  kyvi-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.1.0/24
+
+services:
+  kyvi:
+    build:
+      context: .
+    command: ["kyvi", "-d", "/data/savedata"]
+    image: kyvi
+    networks:
+      kyvi-net:
+        ipv4_address: 172.20.1.2
+    ports:
+      - 6379:6379
+    volumes:
+      - pv-kyvi:/data
+
+  kyvi-cli:
+    command: ["redis-cli", "-h", "kyvi"]
+    image: redis:6-alpine
+    networks:
+      kyvi-net:
+    profiles: ["debug"]
+
+volumes:
+  pv-kyvi:
