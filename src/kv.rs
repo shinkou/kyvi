@@ -9,21 +9,21 @@ use super::datatype::DataType;
 
 use lazy_static::lazy_static;
 
-const ERRMSG_CNTNAI: &str = "ERR Count is not an integer";
-const ERRMSG_IDXNAI: &str = "ERR Index is not an integer";
-const ERRMSG_IDXOOR: &str = "ERR Index out of range";
-const ERRMSG_NOENX2: &str = "ERR Number of elements is not multiple of 2";
-const ERRMSG_NOSKEY: &str = "ERR No such key";
-const ERRMSG_NUMNAI: &str = "ERR Number is not an integer";
-const ERRMSG_NUMNPI: &str = "ERR Number is not a positive integer";
-const ERRMSG_STANAI: &str = "ERR Start index is not an integer";
-const ERRMSG_STONAI: &str = "ERR Stop index is not an integer";
-const ERRMSG_SYNERR: &str = "ERR Syntax error";
-const ERRMSG_VALNAI: &str = "ERR Value is not an integer";
-const ERRMSG_VALNAIOOR: &str =
+static ERRMSG_CNTNAI: &str = "ERR Count is not an integer";
+static ERRMSG_IDXNAI: &str = "ERR Index is not an integer";
+static ERRMSG_IDXOOR: &str = "ERR Index out of range";
+static ERRMSG_NOENX2: &str = "ERR Number of elements is not multiple of 2";
+static ERRMSG_NOSKEY: &str = "ERR No such key";
+static ERRMSG_NUMNAI: &str = "ERR Number is not an integer";
+static ERRMSG_NUMNPI: &str = "ERR Number is not a positive integer";
+static ERRMSG_STANAI: &str = "ERR Start index is not an integer";
+static ERRMSG_STONAI: &str = "ERR Stop index is not an integer";
+static ERRMSG_SYNERR: &str = "ERR Syntax error";
+static ERRMSG_VALNAI: &str = "ERR Value is not an integer";
+static ERRMSG_VALNAIOOR: &str =
 	"ERR Value is not an integer or out of range";
-const ERRMSG_WRITEFAIL: &str = "Write failure";
-const ERRMSG_WRONGTYPE: &str =
+static ERRMSG_WRITEFAIL: &str = "Write failure";
+static ERRMSG_WRONGTYPE: &str =
 	"WRONGTYPE Operation against a key holding the wrong kind of value";
 
 lazy_static! {

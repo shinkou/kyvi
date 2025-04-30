@@ -3,7 +3,7 @@ use phf::phf_map;
 
 use super::datatype::DataType;
 use super::kv;
-use super::parser::parse;
+use super::parser;
 use super::request::Request;
 
 struct Command<'a> {
@@ -390,7 +390,7 @@ pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
 	let mut writer: BufWriter<W> = BufWriter::new(w);
 	loop {
 		if let Err(_) = writer.flush() {return;}
-		match parse(&mut reader) {
+		match parser::parse(&mut reader) {
 			Ok(req) => {
 				match CMDS.get(req.command.as_str()) {
 					Some(cmd) => {
@@ -433,11 +433,15 @@ pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
 				}
 			},
 			Err(e) => {
-				if let Err(_) = write!(writer, "{}", DataType::err(e)) {
+				if let Err(_) = write!(
+					writer, "{}", DataType::err(&e.to_string())
+				) {
 					eprintln!("Error: {:?}", e);
 				}
 				match e {
-					"ERR EOF reached" | "ERR Connection error" => {return;},
+					parser::Error::EOF | parser::Error::Connection => {
+						return;
+					},
 					_ => {}
 				}
 			}
