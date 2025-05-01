@@ -20,43 +20,43 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_append,
 		syntax: "append KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "append value to the string stored at the key."
+		doc: "append value to the string stored at the key"
 	},
 	"client" => Command {
 		function: cmd_client,
 		syntax: "client SETINFO <LIB-NAME libname | LIB-VER libver>",
 		validation: |r| {3 == r.parameters.len()},
-		doc: "set client library information."
+		doc: "set client library information"
 	},
 	"decr" => Command {
 		function: cmd_decr,
 		syntax: "decr KEY",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "decrement the integer value associated with the key."
+		doc: "decrement the integer value associated with the key"
 	},
 	"decrby" => Command {
 		function: cmd_decrby,
 		syntax: "decrby KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "decrement value stored at the key by the integer provided."
+		doc: "decrement value stored at the key by the integer provided"
 	},
 	"del" => Command {
 		function: cmd_del,
 		syntax: "del KEY [ KEY ... ]",
 		validation: |r| {0 < r.parameters.len()},
-		doc: "remove the value associated with the key(s)."
+		doc: "remove the value associated with the key(s)"
 	},
 	"get" => Command {
 		function: cmd_get,
 		syntax: "get KEY",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "obtain value associated with the key."
+		doc: "obtain value associated with the key"
 	},
 	"getdel" => Command {
 		function: cmd_getdel,
 		syntax: "getdel KEY",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "obtain the value of the key and delete it."
+		doc: "obtain the value of the key and delete it"
 	},
 	"getset" => Command {
 		function: cmd_getset,
@@ -68,7 +68,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_help,
 		syntax: "help [ COMMAND ]",
 		validation: |r| {2 > r.parameters.len()},
-		doc: "list commands, or show details of the given command."
+		doc: "list commands, or show details of the given command"
 	},
 	"hdel" => Command {
 		function: cmd_hdel,
@@ -155,31 +155,31 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_incr,
 		syntax: "incr KEY",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "increment the integer value associated with the key."
+		doc: "increment the integer value associated with the key"
 	},
 	"incrby" => Command {
 		function: cmd_incrby,
 		syntax: "incrby KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "increment value stored at the key by the integer provided."
+		doc: "increment value stored at the key by the integer provided"
 	},
 	"info" => Command {
 		function: cmd_info,
 		syntax: "info",
 		validation: |r| {0 == r.parameters.len()},
-		doc: "display system info."
+		doc: "display system info"
 	},
 	"keys" => Command {
 		function: cmd_keys,
 		syntax: "keys REGEX",
 		validation: |r| {1 == r.parameters.len()},
-		doc: "list keys matching the REGEX pattern."
+		doc: "list keys matching the REGEX pattern"
 	},
 	"lindex" => Command {
 		function: cmd_lindex,
 		syntax: "lindex KEY INDEX",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "get element at the index from the list stored at the key."
+		doc: "get element at the index from the list stored at the key"
 	},
 	"linsert" => Command {
 		function: cmd_linsert,
@@ -244,19 +244,19 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_mget,
 		syntax: "mget KEY [ KEY ... ]",
 		validation: |r| {1 < r.parameters.len()},
-		doc: "get values stored at specified keys."
+		doc: "get values stored at specified keys"
 	},
 	"mset" => Command {
 		function: cmd_mset,
 		syntax: "mset KEY VALUE [ KEY VALUE ... ]",
 		validation: |r| {1 < r.parameters.len()},
-		doc: "store values with the specified keys."
+		doc: "store values with the specified keys"
 	},
 	"quit" => Command {
 		function: cmd_quit,
 		syntax: "quit",
 		validation: |r| {0 == r.parameters.len()},
-		doc: "close current connection and quit."
+		doc: "close current connection and quit"
 	},
 	"rpop" => Command {
 		function: cmd_rpop,
@@ -309,7 +309,7 @@ static CMDS: phf::Map<&str, Command> = phf_map! {
 		function: cmd_set,
 		syntax: "set KEY VALUE",
 		validation: |r| {2 == r.parameters.len()},
-		doc: "record the given key value pair."
+		doc: "record the given key value pair"
 	},
 	"sismember" => Command {
 		function: cmd_sismember,

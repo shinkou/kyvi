@@ -32,10 +32,8 @@ pub enum Error<'a> {
 impl std::fmt::Display for Error<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Error::WrongType => write!(
-				f,
-				"WRONGTYPE Operation against a key holding the wrong kind of value"
-			),
+			Error::WrongType => write!(f, "WRONGTYPE Operation against a \
+				key holding the wrong kind of value"),
 			Error::WriteFail => write!(f, "Write failure"),
 			Error::Syntax => write!(f, "ERR Syntax error"),
 			Error::NoSuchKey => write!(f, "ERR No such key"),
