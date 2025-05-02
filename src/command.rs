@@ -7,7 +7,7 @@ use super::parser;
 use super::request::Request;
 
 struct Command<'a> {
-	function: fn(&Request) -> Result<DataType, kv::Error>,
+	function: fn(&Request) -> Result<DataType, kv::KVError>,
 	syntax: &'a str,
 	validation: fn(&Request) -> bool,
 	doc: &'a str
@@ -439,7 +439,8 @@ pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
 					eprintln!("Error: {:?}", e);
 				}
 				match e {
-					parser::Error::EOF | parser::Error::Connection => {
+					parser::ParserError::EOF |
+					parser::ParserError::Connection => {
 						return;
 					},
 					_ => {}
@@ -449,53 +450,53 @@ pub fn process<R: Read + Copy, W: Write>(r: R, w: W) {
 	}
 }
 
-fn cmd_append(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_append(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::append(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_client(_req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_client(_req: &Request) -> Result<DataType, kv::KVError> {
 	// TODO:shinkou:2025-03-06:Implement client command
 	Ok(DataType::str("OK"))
 }
 
-fn cmd_decr(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_decr(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::decr(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_decrby(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_decrby(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::decrby(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_del(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_del(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::del(&req.parameters)
 }
 
-fn cmd_get(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_get(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::get(req.parameters.iter().nth(0).unwrap())
 }
 
-fn cmd_getdel(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_getdel(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::getdel(req.parameters.iter().nth(0).unwrap())
 }
 
-fn cmd_getset(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_getset(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::getset(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_hdel(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hdel(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hdel(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
-fn cmd_help(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_help(req: &Request) -> Result<DataType, kv::KVError> {
 	if 1 == req.parameters.len() {
 		let prm = req.parameters.iter().nth(0).unwrap().as_str();
 		match CMDS.get(prm) {
@@ -524,25 +525,25 @@ fn cmd_help(req: &Request) -> Result<DataType, kv::Error> {
 	}
 }
 
-fn cmd_hexists(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hexists(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hexists(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_hget(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hget(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hget(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_hgetall(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hgetall(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hgetall(req.parameters.iter().nth(0).unwrap())
 }
 
-fn cmd_hincrby(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hincrby(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hincrby(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -550,42 +551,42 @@ fn cmd_hincrby(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_hkeys(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hkeys(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hkeys(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_hlen(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hlen(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hlen(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_hmget(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hmget(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hmget(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
-fn cmd_hset(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hset(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hset(&req.parameters[0], req.parameters[1..].to_vec(), &false)
 }
 
-fn cmd_hsetnx(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hsetnx(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hset(&req.parameters[0], req.parameters[1..].to_vec(), &true)
 }
 
-fn cmd_hvals(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_hvals(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::hvals(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_incr(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_incr(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::incr(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_incrby(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_incrby(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::incrby(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_info(_req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_info(_req: &Request) -> Result<DataType, kv::KVError> {
 	let kv_memsize = kv::memsize();
 	let idx = if 0 < kv_memsize {
 		kv_memsize.ilog2() / 1024i64.ilog2()
@@ -611,18 +612,18 @@ fn cmd_info(_req: &Request) -> Result<DataType, kv::Error> {
 	Ok(DataType::bulkStr(&ss))
 }
 
-fn cmd_keys(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_keys(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::keys(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_lindex(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_lindex(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::lindex(
 		req.parameters.iter().nth(0).unwrap(),
 		req.parameters.iter().nth(1).unwrap()
 	)
 }
 
-fn cmd_linsert(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_linsert(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::linsert(
 		req.parameters.iter().nth(0).unwrap(),
 		req.parameters.iter().nth(1).unwrap(),
@@ -631,11 +632,11 @@ fn cmd_linsert(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_llen(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_llen(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::llen(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_lpop(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_lpop(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::lpop(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		if 1 < req.parameters.len() {
@@ -646,15 +647,15 @@ fn cmd_lpop(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_lpush(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_lpush(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), false)
 }
 
-fn cmd_lpushx(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_lpushx(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::lpush(&req.parameters[0], req.parameters[1..].to_vec(), true)
 }
 
-fn cmd_lrange(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_lrange(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::lrange(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -662,7 +663,7 @@ fn cmd_lrange(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_lrem(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_lrem(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::lrem(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -670,7 +671,7 @@ fn cmd_lrem(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_lset(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_lset(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::lset(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -678,7 +679,7 @@ fn cmd_lset(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_ltrim(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_ltrim(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::ltrim(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -686,19 +687,19 @@ fn cmd_ltrim(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_mget(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_mget(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::mget(&req.parameters)
 }
 
-fn cmd_mset(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_mset(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::mset(&req.parameters)
 }
 
-fn cmd_quit(_req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_quit(_req: &Request) -> Result<DataType, kv::KVError> {
 	Ok(DataType::str("OK"))
 }
 
-fn cmd_rpop(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_rpop(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::rpop(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		if 1 < req.parameters.len() {
@@ -709,27 +710,27 @@ fn cmd_rpop(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_rpush(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_rpush(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::rpush(&req.parameters[0], req.parameters[1..].to_vec(), &false)
 }
 
-fn cmd_rpushx(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_rpushx(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::rpush(&req.parameters[0], req.parameters[1..].to_vec(), &true)
 }
 
-fn cmd_sadd(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sadd(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sadd(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
-fn cmd_scard(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_scard(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::scard(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_sdiff(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sdiff(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sdiff(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
-fn cmd_sdiffstore(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sdiffstore(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sdiffstore(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -737,29 +738,29 @@ fn cmd_sdiffstore(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_set(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_set(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::set(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_sismember(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sismember(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sismember(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str()
 	)
 }
 
-fn cmd_smembers(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_smembers(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::smembers(req.parameters.iter().nth(0).unwrap().as_str())
 }
 
-fn cmd_smismember(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_smismember(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::smismember(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
-fn cmd_smove(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_smove(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::smove(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -767,11 +768,11 @@ fn cmd_smove(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_sinter(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sinter(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sinter(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
-fn cmd_sinterstore(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sinterstore(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sinterstore(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		req.parameters.iter().nth(1).unwrap().as_str(),
@@ -779,7 +780,7 @@ fn cmd_sinterstore(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_spop(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_spop(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::spop(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		if 1 < req.parameters.len() {
@@ -791,7 +792,7 @@ fn cmd_spop(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_srandmember(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_srandmember(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::srandmember(
 		req.parameters.iter().nth(0).unwrap().as_str(),
 		if 1 < req.parameters.len() {
@@ -802,14 +803,14 @@ fn cmd_srandmember(req: &Request) -> Result<DataType, kv::Error> {
 	)
 }
 
-fn cmd_srem(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_srem(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::srem(&req.parameters[0], req.parameters[1..].to_vec())
 }
 
-fn cmd_sunion(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sunion(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sunion(req.parameters.clone())
 }
 
-fn cmd_sunionstore(req: &Request) -> Result<DataType, kv::Error> {
+fn cmd_sunionstore(req: &Request) -> Result<DataType, kv::KVError> {
 	kv::sunionstore(&req.parameters[0], req.parameters[1..].to_vec())
 }

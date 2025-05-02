@@ -1,4 +1,5 @@
 use std::io::{BufRead, BufReader, Read};
+use thiserror::Error;
 
 use super::request::Request;
 
@@ -7,30 +8,23 @@ static ERRMSG_BADSTRLEN: &str = "Invalid string length";
 static ERRMSG_LISTLENDIFF: &str = "Contents unmatch list length";
 static ERRMSG_STRLENDIFF: &str = "Contents unmatch string length";
 
-#[derive(Debug)]
-pub enum Error<'a> {
+#[derive(Debug, Error)]
+pub enum ParserError<'a> {
+	#[error("ERR Connection error")]
 	Connection,
+	#[error("ERR Protocol error")]
 	Protocol,
+	#[error("ERR EOF reached")]
 	EOF,
+	#[error("ERR {0}")]
 	UsizeParsing(&'a str),
+	#[error("ERR {0}")]
 	UnmatchedContents(&'a str)
-}
-
-impl std::fmt::Display for Error<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Error::Connection => write!(f, "ERR Connection error"),
-			Error::Protocol => write!(f, "ERR Protocol error"),
-			Error::EOF => write!(f, "ERR EOF reached"),
-			Error::UsizeParsing(s) => write!(f, "ERR {}", s),
-			Error::UnmatchedContents(s) => write!(f, "ERR {}", s)
-		}
-	}
 }
 
 const EMPTY_STRING: String = String::new();
 
-pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Request, Error> {
+pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Request, ParserError> {
 	let mut prms = get_parameters(reader)?;
 	let cmd = if 0 < prms.len() {
 		prms.remove(0).to_ascii_lowercase()
@@ -41,7 +35,7 @@ pub fn parse<R: Read>(reader: &mut BufReader<R>) -> Result<Request, Error> {
 }
 
 fn get_parameters<R: Read>(reader: &mut BufReader<R>)
-	-> Result<Vec<String>, Error> {
+	-> Result<Vec<String>, ParserError> {
 	let mut parameters: Vec<String> = Vec::new();
 	let mut llen: usize = 0;
 	let mut slen: usize = 0;
@@ -51,31 +45,35 @@ fn get_parameters<R: Read>(reader: &mut BufReader<R>)
 	loop {
 		sln.clear();
 		let line = match reader.read_line(&mut sln) {
-			Ok(0) => return Err(Error::EOF),
+			Ok(0) => return Err(ParserError::EOF),
 			Ok(_) => sln.trim_end(),
-			Err(_) => return Err(Error::Connection)
+			Err(_) => return Err(ParserError::Connection)
 		};
 		if 0 == line.len() && (sbuf.len() < slen || lcnt < llen) {
-			return Err(Error::Protocol);
+			return Err(ParserError::Protocol);
 		};
 		let c = line.chars().nth(0).unwrap_or('\0');
 		if 0 == llen {
 			if '*' == c {
 				match line[1..].parse::<usize>() {
 					Ok(n) => llen = n,
-					Err(_) => return Err(Error::UsizeParsing(ERRMSG_BADLISTLEN))
+					Err(_) => return Err(ParserError::UsizeParsing(
+						ERRMSG_BADLISTLEN
+					))
 				};
 			} else {
-				return Err(Error::Protocol);
+				return Err(ParserError::Protocol);
 			};
 		} else if 0 == slen {
 			if '$' == c {
 				match line[1..].parse::<usize>() {
 					Ok(n) => slen = n,
-					Err(_) => return Err(Error::UsizeParsing(ERRMSG_BADSTRLEN))
+					Err(_) => return Err(ParserError::UsizeParsing(
+						ERRMSG_BADSTRLEN
+					))
 				};
 			} else {
-				return Err(Error::Protocol);
+				return Err(ParserError::Protocol);
 			};
 		} else if 0 < slen {
 			if sbuf.len() < slen {
@@ -87,19 +85,21 @@ fn get_parameters<R: Read>(reader: &mut BufReader<R>)
 				slen = 0;
 				lcnt += 1;
 			} else if sbuf.len() > slen {
-				return Err(Error::UnmatchedContents(ERRMSG_STRLENDIFF));
+				return Err(ParserError::UnmatchedContents(
+					ERRMSG_STRLENDIFF
+				));
 			};
 		} else {
-			return Err(Error::Protocol);
+			return Err(ParserError::Protocol);
 		};
 		if 0 < llen && lcnt == llen {
 			break;
 		}
 	};
 	if slen != 0 || sbuf.len() != 0 {
-		Err(Error::UnmatchedContents(ERRMSG_STRLENDIFF))
+		Err(ParserError::UnmatchedContents(ERRMSG_STRLENDIFF))
 	} else if lcnt != llen {
-		Err(Error::UnmatchedContents(ERRMSG_LISTLENDIFF))
+		Err(ParserError::UnmatchedContents(ERRMSG_LISTLENDIFF))
 	} else {
 		Ok(parameters)
 	}

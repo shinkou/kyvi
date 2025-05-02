@@ -288,7 +288,7 @@ fn plan6() {
 	);
 	assert_eq!(
 		hincrby("fieldvalues", "field2", "64"),
-		Err(Error::Runtime("Value is not an integer"))
+		Err(KVError::Runtime("Value is not an integer"))
 	);
 	assert_eq!(
 		del(&vec!["fieldvalues".to_string()]),

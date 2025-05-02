@@ -1,13 +1,12 @@
+use lazy_static::lazy_static;
 use rand::Rng;
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::sync::Mutex;
-
-use regex::Regex;
+use thiserror::Error;
 
 use super::datatype::DataType;
-
-use lazy_static::lazy_static;
 
 static ERRMSG_CNTNAI: &str = "Count is not an integer";
 static ERRMSG_IDXNAI: &str = "Index is not an integer";
@@ -20,26 +19,18 @@ static ERRMSG_STONAI: &str = "Stop index is not an integer";
 static ERRMSG_VALNAI: &str = "Value is not an integer";
 static ERRMSG_VALNAIOOR: &str = "Value is not an integer or out of range";
 
-#[derive(Debug, PartialEq)]
-pub enum Error<'a> {
+#[derive(Debug, Error, PartialEq)]
+pub enum KVError<'a> {
+	#[error("WRONGTYPE Operation against a key holding the wrong kind of value")]
 	WrongType,
+	#[error("Write failure")]
 	WriteFail,
+	#[error("ERR Syntax error")]
 	Syntax,
+	#[error("ERR No such key")]
 	NoSuchKey,
+	#[error("ERR {0}")]
 	Runtime(&'a str)
-}
-
-impl std::fmt::Display for Error<'_> {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Error::WrongType => write!(f, "WRONGTYPE Operation against a \
-				key holding the wrong kind of value"),
-			Error::WriteFail => write!(f, "Write failure"),
-			Error::Syntax => write!(f, "ERR Syntax error"),
-			Error::NoSuchKey => write!(f, "ERR No such key"),
-			Error::Runtime(s) => write!(f, "ERR {}", s)
-		}
-	}
 }
 
 lazy_static! {
@@ -47,7 +38,7 @@ lazy_static! {
 		Mutex::new(HashMap::new());
 }
 
-pub fn append<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
+pub fn append<'a>(k: &'a str, v: &'a str) -> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get(&bstr_k) {
@@ -56,7 +47,7 @@ pub fn append<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
 			m.insert(bstr_k.clone(), DataType::bulkStr(&a));
 			Ok(DataType::Integer(a.len().try_into().unwrap()))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			m.insert(bstr_k.clone(), DataType::bulkStr(v));
 			Ok(DataType::Integer(v.len().try_into().unwrap()))
@@ -64,7 +55,7 @@ pub fn append<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
 	}
 }
 
-pub fn decr(k: &str) -> Result<DataType, Error> {
+pub fn decr(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get(&bstr_k) {
@@ -77,9 +68,9 @@ pub fn decr(k: &str) -> Result<DataType, Error> {
 				);
 				Ok(DataType::Integer(x))
 			},
-			Err(_) => Err(Error::WrongType)
+			Err(_) => Err(KVError::WrongType)
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			m.insert(bstr_k.clone(), DataType::bulkStr("-1"));
 			Ok(DataType::Integer(-1))
@@ -87,10 +78,10 @@ pub fn decr(k: &str) -> Result<DataType, Error> {
 	}
 }
 
-pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
+pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, KVError<'a>> {
 	let n: i64 = match v.parse::<i64>() {
 		Ok(someint) => someint,
-		Err(_) => return Err(Error::Runtime(ERRMSG_VALNAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_VALNAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -104,9 +95,9 @@ pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
 				);
 				Ok(DataType::Integer(x))
 			},
-			Err(_) => Err(Error::WrongType)
+			Err(_) => Err(KVError::WrongType)
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			let x: i64 = 0 - n;
 			m.insert(bstr_k.clone(), DataType::BulkString(x.to_string()));
@@ -115,7 +106,7 @@ pub fn decrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
 	}
 }
 
-pub fn del(ks: &Vec<String>) -> Result<DataType, Error> {
+pub fn del(ks: &Vec<String>) -> Result<DataType, KVError> {
 	let mut m = M.lock().unwrap();
 	let cnt: i64 = ks.iter().map(|k| {
 		match m.remove(&DataType::bulkStr(k)) {
@@ -126,24 +117,24 @@ pub fn del(ks: &Vec<String>) -> Result<DataType, Error> {
 	Ok(DataType::Integer(cnt))
 }
 
-pub fn get(k: &str) -> Result<DataType, Error> {
+pub fn get(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let m = M.lock().unwrap();
 	let data = m.get(&bstr_k);
 	match data {
 		Some(DataType::BulkString(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	}
 }
 
-pub fn getdel(k: &str) -> Result<DataType, Error> {
+pub fn getdel(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	let data = m.get(&bstr_k);
 	let output = match data {
 		Some(DataType::BulkString(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	};
 	if let Ok(DataType::BulkString(_)) = output {
@@ -152,20 +143,20 @@ pub fn getdel(k: &str) -> Result<DataType, Error> {
 	output
 }
 
-pub fn getset<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
+pub fn getset<'a>(k: &'a str, v: &'a str) -> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	let data = m.get_mut(&bstr_k);
 	let output = match data {
 		Some(DataType::BulkString(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	};
 	m.insert(bstr_k.clone(), DataType::bulkStr(v));
 	output
 }
 
-pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, Error> {
+pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get_mut(&bstr_k) {
@@ -179,12 +170,12 @@ pub fn hdel(k: &str, fs: Vec<String>) -> Result<DataType, Error> {
 			if 0 == hmap.len() {m.remove(&bstr_k);}
 			Ok(DataType::Integer(cnt))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
-pub fn hexists<'a>(k: &'a str, f: &'a str) -> Result<DataType, Error<'a>> {
+pub fn hexists<'a>(k: &'a str, f: &'a str) -> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashMap(hmap)) => Ok(DataType::Integer(
@@ -194,39 +185,39 @@ pub fn hexists<'a>(k: &'a str, f: &'a str) -> Result<DataType, Error<'a>> {
 				0i64
 			}
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
 
-pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, Error<'a>> {
+pub fn hget<'a>(k: &'a str, f: &'a str) -> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashMap(h)) => match h.get(&DataType::bulkStr(f)) {
 			Some(v) => Ok(v.clone()),
 			None => Ok(DataType::Null)
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	}
 }
 
-pub fn hgetall(k: &str) -> Result<DataType, Error> {
+pub fn hgetall(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let m = M.lock().unwrap();
 	let data = m.get(&bstr_k);
 	match data {
 		Some(DataType::HashMap(_)) => Ok(data.unwrap().clone()),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::EmptyList)
 	}
 }
 
 pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let someint: i64 = match n.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_VALNAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_VALNAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -243,7 +234,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 							);
 							Ok(DataType::Integer(x))
 						},
-						Err(_) => Err(Error::Runtime(ERRMSG_VALNAI))
+						Err(_) => Err(KVError::Runtime(ERRMSG_VALNAI))
 					}
 				},
 				None => {
@@ -258,7 +249,7 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 								   // keys
 			}
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			let mut somehmap: HashMap<DataType, DataType> = HashMap::new();
 			somehmap.insert(
@@ -271,28 +262,28 @@ pub fn hincrby<'a>(k: &'a str, f: &'a str, n: &'a str)
 	}
 }
 
-pub fn hkeys(k: &str) -> Result<DataType, Error> {
+pub fn hkeys(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashMap(hmap)) => Ok(DataType::List(
 			hmap.keys().cloned().collect::<Vec<_>>()
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::List(vec![]))
 	}
 }
 
-pub fn hlen(k: &str) -> Result<DataType, Error> {
+pub fn hlen(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashMap(hmap)) =>
 			Ok(DataType::Integer(hmap.len().try_into().unwrap())),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
 
-pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, Error> {
+pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashMap(hmap)) => Ok(DataType::List(
@@ -303,7 +294,7 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, Error> {
 				}
 			}).collect::<Vec<_>>()
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::List(
 			fs.iter().map(|_| {DataType::Null}).collect::<Vec<_>>()
 		))
@@ -311,9 +302,9 @@ pub fn hmget(k: &str, fs: Vec<String>) -> Result<DataType, Error> {
 }
 
 pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	if 0 != nvs.len() % 2 {
-		return Err(Error::Runtime(ERRMSG_NOENX2));
+		return Err(KVError::Runtime(ERRMSG_NOENX2));
 	}
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -346,7 +337,7 @@ pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
 			}
 			Ok(DataType::Integer(cnt))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			let mut somehmap: HashMap<DataType, DataType> = HashMap::new();
 			nvs.chunks(2).for_each(|x| {somehmap.insert(
@@ -360,18 +351,18 @@ pub fn hset<'a>(k: &'a str, nvs: Vec<String>, nx: &'a bool)
 	}
 }
 
-pub fn hvals(k: &str) -> Result<DataType, Error> {
+pub fn hvals(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashMap(hmap)) => Ok(DataType::List(
 			hmap.values().cloned().collect::<Vec<_>>()
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::List(vec![]))
 	}
 }
 
-pub fn incr(k: &str) -> Result<DataType, Error> {
+pub fn incr(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get_mut(&bstr_k) {
@@ -385,10 +376,10 @@ pub fn incr(k: &str) -> Result<DataType, Error> {
 					);
 					Ok(DataType::Integer(x))
 				},
-				Err(_) => Err(Error::Runtime(ERRMSG_VALNAIOOR))
+				Err(_) => Err(KVError::Runtime(ERRMSG_VALNAIOOR))
 			}
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			m.insert(bstr_k.clone(), DataType::bulkStr("1"));
 			Ok(DataType::Integer(1))
@@ -396,10 +387,10 @@ pub fn incr(k: &str) -> Result<DataType, Error> {
 	}
 }
 
-pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
+pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, KVError<'a>> {
 	let n: i64 = match v.parse::<i64>() {
 		Ok(someint) => someint,
-		Err(_) => return Err(Error::Runtime(ERRMSG_VALNAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_VALNAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -413,9 +404,9 @@ pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
 				);
 				Ok(DataType::Integer(x))
 			},
-			Err(_) => Err(Error::Runtime(ERRMSG_VALNAIOOR))
+			Err(_) => Err(KVError::Runtime(ERRMSG_VALNAIOOR))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			let x: i64 = 0 + n;
 			m.insert(bstr_k.clone(), DataType::BulkString(x.to_string()));
@@ -424,7 +415,7 @@ pub fn incrby<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
 	}
 }
 
-pub fn keys(p: &str) -> Result<DataType, Error> {
+pub fn keys(p: &str) -> Result<DataType, KVError> {
 	match Regex::new(p) {
 		Ok(re) => Ok(DataType::List(
 			M.lock().unwrap().keys()
@@ -443,10 +434,10 @@ pub fn keys(p: &str) -> Result<DataType, Error> {
 	}
 }
 
-pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, Error<'a>> {
+pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, KVError<'a>> {
 	let idx: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_IDXNAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_IDXNAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
@@ -461,13 +452,13 @@ pub fn lindex<'a>(k: &'a str, i: &'a str) -> Result<DataType, Error<'a>> {
 				None => Ok(DataType::Null)
 			}
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
 
 pub fn linsert<'a>(k: &'a str, o: &'a str, p: &'a str, e: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get_mut(&bstr_k) {
 		Some(DataType::List(l)) => {
@@ -476,7 +467,7 @@ pub fn linsert<'a>(k: &'a str, o: &'a str, p: &'a str, e: &'a str)
 					let idx = match o.to_ascii_lowercase().as_str() {
 						"before" => i,
 						"after" => i + 1usize,
-						_ => return Err(Error::Syntax)
+						_ => return Err(KVError::Syntax)
 					};
 					l.insert(idx, DataType::bulkStr(e));
 					Ok(DataType::Integer(l.len() as i64))
@@ -484,23 +475,23 @@ pub fn linsert<'a>(k: &'a str, o: &'a str, p: &'a str, e: &'a str)
 				None => return Ok(DataType::Integer(-1))
 			}
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
-pub fn llen(k: &str) -> Result<DataType, Error> {
+pub fn llen(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::List(l)) => Ok(DataType::Integer(
 			l.len().try_into().unwrap()
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0i64))
 	}
 }
 
-pub fn lpush(k: &str, vs: Vec<String>, x: bool) -> Result<DataType, Error> {
+pub fn lpush(k: &str, vs: Vec<String>, x: bool) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get_mut(&bstr_k) {
@@ -508,7 +499,7 @@ pub fn lpush(k: &str, vs: Vec<String>, x: bool) -> Result<DataType, Error> {
 			vs.iter().for_each(|v| {l.insert(0, DataType::bulkStr(&v));});
 			Ok(DataType::Integer(l.len().try_into().unwrap()))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => match x {
 			true => {
 				Ok(DataType::Integer(0))
@@ -525,10 +516,10 @@ pub fn lpush(k: &str, vs: Vec<String>, x: bool) -> Result<DataType, Error> {
 	}
 }
 
-pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, Error<'a>> {
+pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, KVError<'a>> {
 	let popsize: usize = match n.parse::<usize>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_NUMNPI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_NUMNPI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -543,21 +534,21 @@ pub fn lpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, Error<'a>> {
 			if 0 == somevec.len() {m.remove(&bstr_k);}
 			Ok(DataType::List(l))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	}
 }
 
 // the Redis' LRANGE specs is soooooo weird :(
 pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let mut istart: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_STANAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_STANAI))
 	};
 	let mut istop: i64 = match j.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_STONAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_STONAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
@@ -595,16 +586,16 @@ pub fn lrange<'a>(k: &'a str, i: &'a str, j: &'a str)
 				))
 			}
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::EmptyList)
 	}
 }
 
 pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let cnt: i64 = match n.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_CNTNAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_CNTNAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let dte = DataType::bulkStr(e);
@@ -644,16 +635,16 @@ pub fn lrem<'a>(k: &'a str, n: &'a str, e: &'a str)
 			if 0 == l.len() {m.remove(&bstr_k);}
 			Ok(DataType::Integer(idxs.len() as i64))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	}
 }
 
 pub fn lset<'a>(k: &'a str, i: &'a str, e: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let idx: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_IDXNAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_IDXNAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get_mut(&bstr_k) {
@@ -671,23 +662,23 @@ pub fn lset<'a>(k: &'a str, i: &'a str, e: &'a str)
 				*element = DataType::bulkStr(e);
 				Ok(DataType::bulkStr("OK"))
 			} else {
-				Err(Error::Runtime(ERRMSG_IDXOOR))
+				Err(KVError::Runtime(ERRMSG_IDXOOR))
 			}
 		},
-		Some(_) => Err(Error::WrongType),
-		None => Err(Error::NoSuchKey)
+		Some(_) => Err(KVError::WrongType),
+		None => Err(KVError::NoSuchKey)
 	}
 }
 
 pub fn ltrim<'a>(k: &'a str, i: &'a str, j: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let mut istart: i64 = match i.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_STANAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_STANAI))
 	};
 	let mut istop: i64 = match j.parse::<i64>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_STONAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_STONAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get_mut(&bstr_k) {
@@ -720,7 +711,7 @@ pub fn ltrim<'a>(k: &'a str, i: &'a str, j: &'a str)
 			};
 			Ok(DataType::bulkStr("OK"))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::bulkStr("OK"))
 	}
 }
@@ -729,7 +720,7 @@ pub fn memsize() -> usize {
 	M.lock().unwrap().iter().map(|(k, v)| k.capacity() + v.capacity()).sum()
 }
 
-pub fn mget(ks: &Vec<String>) -> Result<DataType, Error> {
+pub fn mget(ks: &Vec<String>) -> Result<DataType, KVError> {
 	Ok(DataType::List(
 		ks.iter().map(|k| {
 			let m = M.lock().unwrap();
@@ -743,9 +734,9 @@ pub fn mget(ks: &Vec<String>) -> Result<DataType, Error> {
 	))
 }
 
-pub fn mset(nvs: &Vec<String>) -> Result<DataType, Error> {
+pub fn mset(nvs: &Vec<String>) -> Result<DataType, KVError> {
 	if 0 != nvs.len() % 2 {
-		return Err(Error::Runtime(ERRMSG_NOENX2));
+		return Err(KVError::Runtime(ERRMSG_NOENX2));
 	}
 	let mut m = M.lock().unwrap();
 	nvs.chunks(2).for_each(|x| {
@@ -754,10 +745,10 @@ pub fn mset(nvs: &Vec<String>) -> Result<DataType, Error> {
 	Ok(DataType::str("OK"))
 }
 
-pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, Error<'a>> {
+pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, KVError<'a>> {
 	let popsize: usize = match n.parse::<usize>() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_NUMNPI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_NUMNPI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -772,13 +763,13 @@ pub fn rpop<'a>(k: &'a str, n: &'a str) -> Result<DataType, Error<'a>> {
 			if 0 == somevec.len() {m.remove(&bstr_k);}
 			Ok(DataType::List(l))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	}
 }
 
 pub fn rpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get_mut(&bstr_k) {
@@ -786,7 +777,7 @@ pub fn rpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
 			vs.iter().for_each(|v| {l.push(DataType::bulkStr(&v));});
 			Ok(DataType::Integer(l.len().try_into().unwrap()))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => match x {
 			true => {
 				Ok(DataType::Integer(0))
@@ -803,7 +794,7 @@ pub fn rpush<'a>(k: &'a str, vs: Vec<String>, x: &'a bool)
 	}
 }
 
-pub fn sadd(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
+pub fn sadd(k: &str, vs: Vec<String>) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get_mut(&bstr_k) {
@@ -812,7 +803,7 @@ pub fn sadd(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
 				if s.insert(DataType::bulkStr(v)){1}else{0}
 			}).sum()
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => {
 			let mut s: HashSet<DataType> = HashSet::new();
 			let i = vs.iter().map(|v|{
@@ -824,18 +815,18 @@ pub fn sadd(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
 	}
 }
 
-pub fn scard(k: &str) -> Result<DataType, Error> {
+pub fn scard(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashSet(hset)) => Ok(DataType::Integer(
 			hset.len() as i64
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
-pub fn sdiff(k: &str, ks: Vec<String>) -> Result<DataType, Error> {
+pub fn sdiff(k: &str, ks: Vec<String>) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let m = M.lock().unwrap();
 	match m.get(&bstr_k) {
@@ -851,13 +842,13 @@ pub fn sdiff(k: &str, ks: Vec<String>) -> Result<DataType, Error> {
 			});
 			Ok(DataType::List(vs.iter().cloned().collect()))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::EmptyList)
 	}
 }
 
 pub fn sdiffstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get(&bstr_k) {
@@ -872,12 +863,12 @@ pub fn sdiffstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 			m.insert(DataType::bulkStr(dst), DataType::hset(&vs));
 			Ok(DataType::Integer(vs.len() as i64))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
-pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
+pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, KVError<'a>> {
 	let _ = M.lock().unwrap().insert(
 		DataType::bulkStr(k),
 		DataType::bulkStr(v)
@@ -885,7 +876,7 @@ pub fn set<'a>(k: &'a str, v: &'a str) -> Result<DataType, Error<'a>> {
 	Ok(DataType::str("OK"))
 }
 
-pub fn sinter(k: &str, ks: Vec<String>) -> Result<DataType, Error> {
+pub fn sinter(k: &str, ks: Vec<String>) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let m = M.lock().unwrap();
 	match m.get(&bstr_k) {
@@ -898,13 +889,13 @@ pub fn sinter(k: &str, ks: Vec<String>) -> Result<DataType, Error> {
 			}});
 			Ok(DataType::List(vs))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::EmptyList)
 	}
 }
 
 pub fn sinterstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get(&bstr_k) {
@@ -919,35 +910,35 @@ pub fn sinterstore<'a>(dst: &'a str, k: &'a str, ks: Vec<String>)
 			m.insert(DataType::bulkStr(dst), DataType::hset(&vs));
 			Ok(DataType::Integer(vs.len() as i64))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
 pub fn sismember<'a>(k: &'a str, v: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashSet(hset)) => Ok(DataType::Integer(
 			if hset.contains(&DataType::bulkStr(v)) {1} else {0}
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
-pub fn smembers(k: &str) -> Result<DataType, Error> {
+pub fn smembers(k: &str) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashSet(hset)) =>
 			Ok(DataType::HashSet(hset.clone())),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::EmptyList)
 	}
 }
 
 pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let bstr_src: DataType = DataType::bulkStr(src);
 	let mut m = M.lock().unwrap();
 	let item = match m.get_mut(&bstr_src) {
@@ -956,7 +947,7 @@ pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
 			if 0 == hset.len() {m.remove(&bstr_src);}
 			e
 		},
-		Some(_) => return Err(Error::WrongType),
+		Some(_) => return Err(KVError::WrongType),
 		None => return Ok(DataType::Integer(0))
 	};
 	match item {
@@ -967,7 +958,7 @@ pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
 					hset2.insert(item.unwrap());
 					Ok(DataType::Integer(1))
 				},
-				Some(_) => Err(Error::WrongType),
+				Some(_) => Err(KVError::WrongType),
 				None => {
 					let mut hset2: HashSet<DataType> = HashSet::new();
 					hset2.insert(item.unwrap());
@@ -976,12 +967,12 @@ pub fn smove<'a>(src: &'a str, dst: &'a str, v: &'a str)
 				}
 			}
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
-pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
+pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
 		Some(DataType::HashSet(hset)) => Ok(DataType::List(
@@ -989,7 +980,7 @@ pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
 				if hset.contains(&DataType::bulkStr(v)) {1} else {0}
 			)}).collect()
 		)),
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::List(
 			vs.iter().map(|_| {DataType::Integer(0)}).collect()
 		))
@@ -997,10 +988,10 @@ pub fn smismember(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
 }
 
 pub fn spop<'a>(k: &'a str, n: &'a str, single_item: bool)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let popsize: usize = match n.parse() {
 		Ok(v) => v,
-		Err(_) => return Err(Error::Runtime(ERRMSG_NUMNPI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_NUMNPI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
@@ -1024,16 +1015,16 @@ pub fn spop<'a>(k: &'a str, n: &'a str, single_item: bool)
 				Ok(DataType::List(vs))
 			}
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::EmptyList)
 	}
 }
 
 pub fn srandmember<'a>(k: &'a str, c: &'a str)
-	-> Result<DataType, Error<'a>> {
+	-> Result<DataType, KVError<'a>> {
 	let i = match c.parse::<i64>() {
 		Ok(n) => n,
-		Err(_) => return Err(Error::Runtime(ERRMSG_NUMNAI))
+		Err(_) => return Err(KVError::Runtime(ERRMSG_NUMNAI))
 	};
 	let bstr_k: DataType = DataType::bulkStr(k);
 	match M.lock().unwrap().get(&bstr_k) {
@@ -1068,12 +1059,12 @@ pub fn srandmember<'a>(k: &'a str, c: &'a str)
 					.collect::<Vec<_>>()
 			))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Null)
 	}
 }
 
-pub fn srem(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
+pub fn srem(k: &str, vs: Vec<String>) -> Result<DataType, KVError> {
 	let bstr_k: DataType = DataType::bulkStr(k);
 	let mut m = M.lock().unwrap();
 	match m.get_mut(&bstr_k) {
@@ -1088,12 +1079,12 @@ pub fn srem(k: &str, vs: Vec<String>) -> Result<DataType, Error> {
 			if 0 == hset.len() {m.remove(&bstr_k);}
 			Ok(DataType::Integer(cnt))
 		},
-		Some(_) => Err(Error::WrongType),
+		Some(_) => Err(KVError::WrongType),
 		None => Ok(DataType::Integer(0))
 	}
 }
 
-pub fn sunion(ks: Vec<String>) -> Result<DataType, Error<'static>> {
+pub fn sunion(ks: Vec<String>) -> Result<DataType, KVError<'static>> {
 	let m = M.lock().unwrap();
 	let mut wk: HashSet<DataType> = HashSet::new();
 	for k in ks {
@@ -1101,13 +1092,13 @@ pub fn sunion(ks: Vec<String>) -> Result<DataType, Error<'static>> {
 		if let Some(DataType::HashSet(hset)) = m.get(&bstr_k) {
 			wk = wk.union(hset).cloned().collect();
 		} else {
-			return Err(Error::WrongType);
+			return Err(KVError::WrongType);
 		}
 	}
 	Ok(DataType::List(wk.iter().cloned().collect::<Vec<_>>()))
 }
 
-pub fn sunionstore(dst: &str, ks: Vec<String>) -> Result<DataType, Error> {
+pub fn sunionstore(dst: &str, ks: Vec<String>) -> Result<DataType, KVError> {
 	let mut m = M.lock().unwrap();
 	let mut wk: HashSet<DataType> = HashSet::new();
 	for k in ks {
@@ -1115,19 +1106,19 @@ pub fn sunionstore(dst: &str, ks: Vec<String>) -> Result<DataType, Error> {
 		if let Some(DataType::HashSet(hset)) = m.get(&bstr_k) {
 			wk = wk.union(hset).cloned().collect();
 		} else {
-			return Err(Error::WrongType);
+			return Err(KVError::WrongType);
 		}
 	}
 	m.insert(DataType::bulkStr(dst), DataType::hset(&wk));
 	Ok(DataType::Integer(wk.len() as i64))
 }
 
-pub fn write_data<W>(w: &mut W) -> Result<(), Error> where W: Write {
+pub fn write_data<W>(w: &mut W) -> Result<(), KVError> where W: Write {
 	let m = M.lock().unwrap();
 	for t in m.iter() {
 		match t.0 {
 			DataType::BulkString(_) => {},
-			_ => return Err(Error::WrongType)
+			_ => return Err(KVError::WrongType)
 		}
 		let l = DataType::List(match t.1 {
 			DataType::HashMap(hm) => {
@@ -1150,10 +1141,10 @@ pub fn write_data<W>(w: &mut W) -> Result<(), Error> where W: Write {
 			DataType::BulkString(_) => {
 				vec![DataType::bulkStr("set"), t.0.clone(), t.1.clone()]
 			},
-			_ => return Err(Error::WrongType)
+			_ => return Err(KVError::WrongType)
 		});
 		if let Err(_) = write!(w, "{}", l) {
-			return Err(Error::WriteFail);
+			return Err(KVError::WriteFail);
 		}
 	}
 	Ok(())
